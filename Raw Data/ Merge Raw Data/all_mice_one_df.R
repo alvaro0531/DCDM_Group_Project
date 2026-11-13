@@ -28,72 +28,101 @@ second_mouse_df <- read.csv(second_read)
 dim(second_mouse_df)
 head(second_mouse_df)
 
-#lets get this into one big data frame where we have everything - but first do a dummy df
-library(data.table)
+#lets get all data into one dataframe
+library(tidyr)
 
-# 1. Define your target files
-target_files <- c("group14_data/an3702961657.csv", "group14_data/an9082083823.csv")
+# Set your folder path (since you are already in the Raw Data directory)
+folder <- getwd()
 
-# 2. Process each file into a single row and combine them immediately into ONE big df
-multiple_mice_list <- lapply(target_files, function(f) {
-  temp <- unz("Raw Data/group14_data.zip", f)
-  df <- read.csv(temp, stringsAsFactors = FALSE, header = TRUE)
+# Find all CSV files whose names start with "an"
+files <- list.files(
+  folder,
+  pattern = "^an.*\\.csv$",
+  full.names = TRUE
+)
+
+if (length(files) == 0) {
+  stop("No an*.csv files were found. Please check the working directory.")
+}
+
+# Import one file and standardise known field-name variations
+read_one <- function(f) {
+  x <- read.csv(
+    f,
+    header = FALSE,
+    col.names = c("variable", "value"),
+    stringsAsFactors = FALSE,
+    check.names = FALSE,
+    colClasses = "character",
+    na.strings = character(),
+    fill = TRUE,
+    quote = "\""
+  )
   
-  # Extract animal ID from column header
-  animal_id <- colnames(df)[2]
-  
-  # Standardize and transpose
-  colnames(df) <- c("attribute", "value")
-  df$attribute <- tolower(trimws(df$attribute))
-  df <- df[!is.na(df$attribute) & df$attribute != "", ]
-  df <- df[!duplicated(df$attribute), ]
-  
-  single_row <- as.data.frame(t(df$value), stringsAsFactors = FALSE)
-  colnames(single_row) <- df$attribute
-  single_row$animal_id <- animal_id
-  
-  return(single_row)
-})
-
-# 3. Bind them into ONE big dataframe
-dummy_df <- rbindlist(multiple_mice_list, fill = TRUE)
-
-# Put animal_id first
-setcolorder(one_big_df, c("animal_id", setdiff(names(one_big_df), "animal_id")))
-
-
-
-#now lets do it for the rest of 28k mice + note the format is in long data, perhaps consider converting this into wide format but first need to make the one big data frame 
-
-# loop through every file path in all_csv$Name and process into individual rows
-mouse_list <- lapply(seq_len(nrow(all_csv)), function(i) {
-  file_path <- all_csv$Name[i]
-  
-  if (i %% 1000 == 0) {
-    cat("Processing file", i, "of", nrow(all_csv), "...\n")
+  if (ncol(x) != 2) {
+    stop(paste("The file was not read as two columns:", basename(f)))
   }
   
-  con <- unz("Raw Data/group14_data.zip", file_path)
-  df <- read.csv(con, stringsAsFactors = FALSE, header = TRUE)
+  x$variable <- trimws(x$variable)
+  x$value <- trimws(x$value)
   
-  animal_id <- colnames(df)[2]  # extract the unique animal ID from the second column header
+  # Fix known cases where a field name and value were joined together
+  missing_value <- is.na(x$value) | x$value == ""
   
-  colnames(df) <- c("attribute", "value")  # standardise and clean the best we can
-  df$attribute <- tolower(trimws(df$attribute))
-  df$attribute <- gsub('["\\\\]', '', df$attribute)
+  i <- grepl('^lacz_skin"?expression$', x$variable) & missing_value
+  x$variable[i] <- "lacz_skin"
+  x$value[i] <- "expression"
   
-  df <- df[!is.na(df$attribute) & df$attribute != "", ]
-  df <- df[!duplicated(df$attribute), ]
+  i <- grepl('^lacz_colon"?No data$', x$variable) & missing_value
+  x$variable[i] <- "lacz_colon"
+  x$value[i] <- "No data"
   
-  single_row <- as.data.frame(t(df$value), stringsAsFactors = FALSE)   # transpose into a single horizontal row for this mouse
-  colnames(single_row) <- df$attribute
-  single_row$animal_id <- animal_id
+  # Remove an accidental trailing quote from field names
+  x$variable <- sub('"$', "", x$variable)
   
-  return(single_row)
-})
+  # Standardise confirmed spelling variations
+  name_map <- c(
+    "mouselife_stage" = "mouse_life_stage",
+    "Allele_symbol"   = "allele_symbol",
+    "laczHeart"       = "lacz_heart"
+  )
+  
+  i <- x$variable %in% names(name_map)
+  x$variable[i] <- unname(name_map[x$variable[i]])
+  
+  # Remove rows with a missing or blank field name
+  keep <- !is.na(x$variable) & x$variable != ""
+  x <- x[keep, ]
+  
+  # Stop if a field name occurs more than once in a file
+  if (anyDuplicated(x$variable)) {
+    stop(paste("Duplicate field names found in:", basename(f)))
+  }
+  
+  # Record the source file for each row
+  x$source_file <- basename(f)
+  x
+}
 
-one_big_df <- rbindlist(mouse_list, fill = TRUE) # combine everything into one big unified dataframe
-setcolorder(one_big_df, c("animal_id", setdiff(names(one_big_df), "animal_id")))
+# Import and combine all files in long format
+data_fixed <- do.call(rbind, lapply(files, read_one))
+rownames(data_fixed) <- NULL
 
-one_big_df <- one_big_df[, 1:(ncol(one_big_df) - 4)] # remove those last 4 columns that show NA 
+# Check that each file has only one record for each field
+if (anyDuplicated(data_fixed[c("source_file", "variable")])) {
+  stop("A field occurs more than once in the same file. Please inspect the source files.")
+}
+
+# Convert to wide format: one row per file and one column per field
+wide_data <- pivot_wider(
+  data_fixed,
+  id_cols = source_file,
+  names_from = variable,
+  values_from = value
+)
+
+# View and inspect the result
+View(wide_data)
+dim(wide_data)
+names(wide_data)
 
