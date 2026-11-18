@@ -1,0 +1,673 @@
+---
+title: "sql"
+output: html_document
+date: "2026-11-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Standard
+```{r}
+# Standardise the bespokeTask column names
+names(bespokeTask) <- c(
+  "human_gene_symbol",
+  "human_entrez_gene_id",
+  "gene_symbol",
+  "gene_accession_id",
+  "high_level_mp_ids"
+)
+
+# Standardise the Disease_information column names
+names(Disease_information) <- c(
+  "human_gene_symbol",
+  "human_gene_name",
+  "hgnc_id",
+  "do_term_name",
+  "do_term_id",
+  "mouse_genotype_ids",
+  "gene_symbol",
+  "gene_accession_id"
+)
+```
+
+
+
+### Parameter catalogue
+
+This step prepares a clean catalogue of IMPC parameters from `IMPC_parameter_description`. It keeps the parameter ID and name, standardises their column names for later use, removes rows with missing identifiers or names, and removes duplicate ID–name pairs. This catalogue is the reference used to build the parameter groups.
+
+```{r}
+if ("parameterId" %in% names(IMPC_parameter_description)) {
+  parameter_id_column <- "parameterId"
+} else if ("parameter_id" %in% names(IMPC_parameter_description)) {
+  parameter_id_column <- "parameter_id"
+} else {
+  stop("No parameter ID column was found.")
+}
+
+if ("name" %in% names(IMPC_parameter_description)) {
+  parameter_name_column <- "name"
+} else if ("parameter_name" %in% names(IMPC_parameter_description)) {
+  parameter_name_column <- "parameter_name"
+} else {
+  stop("No parameter name column was found.")
+}
+
+parameter_catalog <- data.frame(
+  parameter_id = as.character(
+    IMPC_parameter_description[[parameter_id_column]]
+  ),
+  parameter_name = as.character(
+    IMPC_parameter_description[[parameter_name_column]]
+  ),
+  stringsAsFactors = FALSE
+)
+
+parameter_catalog$parameter_id <- trimws(parameter_catalog$parameter_id)
+parameter_catalog$parameter_name <- trimws(parameter_catalog$parameter_name)
+
+parameter_catalog <- parameter_catalog[
+  !is.na(parameter_catalog$parameter_id) &
+    parameter_catalog$parameter_id != "" &
+    !is.na(parameter_catalog$parameter_name) &
+    parameter_catalog$parameter_name != "",
+  ,
+  drop = FALSE
+]
+
+parameter_catalog <- unique(parameter_catalog)
+rownames(parameter_catalog) <- NULL
+```
+
+### Parameter_group helper function
+
+This step defines a reusable function for selecting parameters by keywords in their names. It adds the requested group name to each selected parameter, so the same selection logic can be reused for several groups.
+
+```{r}
+make_group <- function(pattern, group_label) {
+  selected <- parameter_catalog[
+    grepl(
+      pattern,
+      parameter_catalog$parameter_name,
+      ignore.case = TRUE
+    ),
+    ,
+    drop = FALSE
+  ]
+  
+  selected$group_name <- group_label
+  selected
+}
+```
+
+### Images group
+
+This step creates the Images group using the seven parameter IDs selected for image-related measurements. It also checks whether any of those IDs are missing from the parameter catalogue, so they can be reviewed before the group is used.
+
+```{r}
+image_ids <- c(
+  "IMPC_EYE_050_001",
+  "IMPC_EYE_072_001",
+  "IMPC_EYE_073_001",
+  "IMPC_EYE_074_001",
+  "IMPC_EYE_075_001",
+  "IMPC_EYE_078_001",
+  "IMPC_EYE_079_001"
+)
+
+image_group_members <- parameter_catalog[
+  parameter_catalog$parameter_id %in% image_ids,
+  ,
+  drop = FALSE
+]
+
+image_group_members$group_name <- "Images"
+
+image_ids_not_found <- setdiff(
+  image_ids,
+  parameter_catalog$parameter_id
+)
+
+image_ids_not_found
+```
+
+### Weight group
+
+This step selects parameters whose names suggest that they relate to body weight or body mass. It then excludes specified parameters, such as grip-strength and experimental-effect measures, that should not be classified as weight parameters.
+
+```{r}
+weight_group_members <- make_group(
+  "body weight|body mass|bodyweight|weight gain|weight loss",
+  "Weight"
+)
+
+exclude_weight_ids <- c(
+  "IMPC_GRS_010_001",
+  "IMPC_GRS_011_001",
+  "IMPC_EXD_016_001",
+  "IMPC_EXD_047_001",
+  "IMPC_EXD_069_001",
+  "IMPC_EXD_099_001"
+)
+
+weight_group_members <- weight_group_members[
+  !weight_group_members$parameter_id %in% exclude_weight_ids,
+  ,
+  drop = FALSE
+]
+```
+
+### Brain group
+
+This step selects parameters whose names refer to the brain or brain regions. It excludes “renal cortex,” because that term refers to the kidney rather than the brain.
+
+```{r}
+brain_group_members <- make_group(
+  "brain|cerebell|hippocamp|cortex",
+  "Brain"
+)
+
+brain_group_members <- brain_group_members[
+  !grepl(
+    "renal cortex",
+    brain_group_members$parameter_name,
+    ignore.case = TRUE
+  ),
+  ,
+  drop = FALSE
+]
+```
+
+### Haematology and immunophenotyping group
+
+This step selects parameters whose names contain keywords related to blood, blood cells, or haematology. The selected parameters are assigned to the `Haematology_and_immunophenotyping` group.
+
+```{r}
+haematology_group_members <- make_group(
+  "haemat|hemat|platelet|erythrocyte|leukocyte|haemoglobin|hemoglobin|blood cell",
+  "Haematology_and_immunophenotyping"
+)
+```
+
+### Behaviour group
+
+This step selects parameters whose names suggest behavioural or activity-related measurements, including locomotion, grip strength, startle response, anxiety, learning, and memory.
+
+```{r}
+behaviour_group_members <- make_group(
+  "behavio|activity|locomot|grip|startle|anxiety|learning|memory",
+  "Behaviour"
+)
+```
+
+### Clinical chemistry and metabolism group
+
+This step selects parameters whose names suggest clinical chemistry or metabolism, including glucose, insulin, cholesterol, enzymes, creatinine, and urea.
+
+```{r}
+clinical_chemistry_group_members <- make_group(
+  "glucose|insulin|cholesterol|triglyceride|bilirubin|enzyme|metabol|chemistry|creatinine|urea",
+  "Clinical_chemistry_and_metabolism"
+)
+```
+
+### Combined parameter_group candidates
+
+This step removes experimental-design and quality-control parameters from the phenotype groups, and removes reagent-information parameters from the clinical chemistry group. It then combines the selected parameters into one candidate table and counts the unique parameters in each group. These are candidate assignments and should be reviewed before being used as final group membership data.
+
+```{r}
+# Remove experimental-design and quality-control parameters from phenotype groups
+remove_non_phenotype_parameters <- function(x) {
+  x[
+    !grepl(
+      "^(Blinding|Instrumentation effects|Operator effects|Order effects)",
+      x$parameter_name,
+      ignore.case = TRUE
+    ),
+    ,
+    drop = FALSE
+  ]
+}
+
+weight_group_members <- remove_non_phenotype_parameters(weight_group_members)
+brain_group_members <- remove_non_phenotype_parameters(brain_group_members)
+haematology_group_members <- remove_non_phenotype_parameters(haematology_group_members)
+behaviour_group_members <- remove_non_phenotype_parameters(behaviour_group_members)
+clinical_chemistry_group_members <- remove_non_phenotype_parameters(
+  clinical_chemistry_group_members
+)
+
+# Remove reagent-information parameters from Clinical chemistry and metabolism
+clinical_chemistry_group_members <- clinical_chemistry_group_members[
+  !grepl(
+    "^Enzyme buffer (manufacturer|catalog number)$",
+    clinical_chemistry_group_members$parameter_name,
+    ignore.case = TRUE
+  ),
+  ,
+  drop = FALSE
+]
+
+# Rebuild the combined candidate table
+parameter_group_candidates <- unique(
+  rbind(
+    image_group_members,
+    weight_group_members,
+    brain_group_members,
+    haematology_group_members,
+    behaviour_group_members,
+    clinical_chemistry_group_members
+  )
+)
+
+rownames(parameter_group_candidates) <- NULL
+
+# Recalculate the number of candidate parameters in each group
+group_counts <- aggregate(
+  parameter_id ~ group_name,
+  data = parameter_group_candidates,
+  FUN = function(x) length(unique(x))
+)
+
+names(group_counts)[2] <- "candidate_parameter_count"
+
+knitr::kable(group_counts)
+```
+
+### Check group assignments
+
+This step checks whether the same parameter–group assignment appears more than once and whether any parameter has been assigned to multiple groups. These checks help identify duplicate or overlapping assignments for review.
+
+
+
+```{r}
+# Find repeated parameter-to-group assignments
+duplicate_memberships <- parameter_group_candidates[
+  duplicated(parameter_group_candidates[c("parameter_id", "group_name")]) |
+    duplicated(
+      parameter_group_candidates[c("parameter_id", "group_name")],
+      fromLast = TRUE
+    ),
+]
+
+View(duplicate_memberships)
+# Check whether any parameter ID is assigned to multiple groups
+groups_per_parameter <- aggregate(
+  group_name ~ parameter_id,
+  data = unique(parameter_group_candidates[c("parameter_id", "group_name")]),
+  FUN = function(x) paste(sort(unique(x)), collapse = ", ")
+)
+
+multiple_group_assignments <- groups_per_parameter[
+  grepl(",", groups_per_parameter$group_name, fixed = TRUE),
+]
+
+View(multiple_group_assignments)
+```
+
+### Create the parameter_group and  parameter_group_member tables
+
+This step creates two related tables. `parameter_group` stores one row per group, while `parameter_group_member` links each group to its parameter IDs. Together, they represent the many-to-many relationship between parameters and groups.
+
+```{r}
+# Create the parameter-group lookup table
+group_names <- sort(unique(parameter_group_candidates$group_name))
+
+parameter_group <- data.frame(
+  group_id = seq_along(group_names),
+  group_name = group_names,
+  stringsAsFactors = FALSE
+)
+
+# Create the table linking parameter IDs to groups
+parameter_group_member <- unique(
+  parameter_group_candidates[c("parameter_id", "group_name")]
+)
+
+parameter_group_member$group_id <- parameter_group$group_id[
+  match(parameter_group_member$group_name, parameter_group$group_name)
+]
+
+parameter_group_member <- parameter_group_member[
+  c("group_id", "parameter_id")
+]
+
+parameter_group_member <- parameter_group_member[
+  order(parameter_group_member$group_id, parameter_group_member$parameter_id),
+]
+
+rownames(parameter_group_member) <- NULL
+
+# Check that every parameter ID exists in the parameter catalogue
+sum(!parameter_group_member$parameter_id %in% parameter_catalog$parameter_id)
+
+View(parameter_group)
+View(parameter_group_member)
+```
+
+
+
+
+### Standardise column names and inspect tables
+
+This step renames parameter-description fields to match the SOP and changes the chromosome 2 column names into simpler names suitable for database use. It then prints the row counts and column names of the main tables so their structures can be checked before database creation.
+
+```{r}
+### Standardise database column names
+
+#This step aligns the parameter fields with the SOP names and gives the chromosome 2 fields simple names that are convenient to use in SQL.
+
+# Rename parameter fields to match the SOP
+if ("parameterId" %in% names(IMPC_parameter_description) &&
+    !("parameter_id" %in% names(IMPC_parameter_description))) {
+  names(IMPC_parameter_description)[
+    names(IMPC_parameter_description) == "parameterId"
+  ] <- "parameter_id"
+}
+
+if ("name" %in% names(IMPC_parameter_description) &&
+    !("parameter_name" %in% names(IMPC_parameter_description))) {
+  names(IMPC_parameter_description)[
+    names(IMPC_parameter_description) == "name"
+  ] <- "parameter_name"
+}
+
+# Rename chromosome 2 fields
+old_names <- c(
+  "Gene stable ID",
+  "Transcript stable ID",
+  "Gene name",
+  "Exon stable ID",
+  "Exon region start (bp)",
+  "Exon region end (bp)",
+  "Exon rank in transcript"
+)
+
+new_names <- c(
+  "gene_stable_id",
+  "transcript_stable_id",
+  "gene_symbol",
+  "exon_stable_id",
+  "exon_start_bp",
+  "exon_end_bp",
+  "exon_rank"
+)
+
+for (i in seq_along(old_names)) {
+  if (old_names[i] %in% names(chrom2) &&
+      !(new_names[i] %in% names(chrom2))) {
+    names(chrom2)[names(chrom2) == old_names[i]] <- new_names[i]
+  }
+}
+
+# Check the column names
+names(IMPC_parameter_description)
+names(IMPC_procedure)
+names(chrom2)
+
+
+
+
+tables_to_check <- c(
+  "clean_wide_data",
+  "IMPC_parameter_description",
+  "IMPC_procedure",
+  "bespokeTask",
+  "Disease_information",
+  "chrom2",
+  "parameter_group",
+  "parameter_group_member"
+)
+
+for (table_name in tables_to_check) {
+  if (exists(table_name) && is.data.frame(get(table_name))) {
+    x <- get(table_name)
+    cat(
+      "\nTable:", table_name,
+      "| Rows:", nrow(x),
+      "| Columns:", ncol(x), "\n"
+    )
+    print(names(x))
+  } else {
+    cat("\nTable not found in R:", table_name, "\n")
+  }
+}
+```
+
+## Create the mouse_gene table
+
+This step collects mouse MGI accession IDs and gene symbols from the main results, bespoke task, and disease information tables. It creates one row per MGI ID. When an ID is associated with conflicting symbols, the symbol is left blank for review instead of choosing one automatically.
+
+
+
+```{r}
+# Combine mouse gene IDs and symbols from the three tables
+gene_source <- rbind(
+  clean_wide_data[c("gene_accession_id", "gene_symbol")],
+  bespokeTask[c("gene_accession_id", "gene_symbol")],
+  Disease_information[c("gene_accession_id", "gene_symbol")]
+)
+
+gene_source$gene_accession_id <- trimws(
+  as.character(gene_source$gene_accession_id)
+)
+gene_source$gene_symbol <- trimws(
+  as.character(gene_source$gene_symbol)
+)
+
+# Keep rows with an MGI ID
+gene_source <- gene_source[
+  !is.na(gene_source$gene_accession_id) &
+    gene_source$gene_accession_id != "",
+]
+
+# Create one row for every MGI ID, including IDs with no symbol
+gene_ids <- unique(gene_source$gene_accession_id)
+
+mouse_gene <- data.frame(
+  gene_accession_id = gene_ids,
+  gene_symbol = NA_character_,
+  stringsAsFactors = FALSE
+)
+
+# Assign a symbol only when the ID has exactly one unambiguous symbol
+for (i in seq_along(gene_ids)) {
+  symbols <- unique(
+    gene_source$gene_symbol[
+      gene_source$gene_accession_id == gene_ids[i] &
+        !is.na(gene_source$gene_symbol) &
+        gene_source$gene_symbol != ""
+    ]
+  )
+
+  if (length(symbols) == 1) {
+    mouse_gene$gene_symbol[i] <- symbols
+  }
+}
+
+View(mouse_gene)
+```
+
+### Create the SQL database schema
+
+The database is organised around the identifiers shared by the data. mouse_gene provides one record for each MGI gene accession ID and links the mouse gene data in clean_wide_data, bespokeTask, and Disease_information. clean_wide_data also links to IMPC_parameter_description through parameter_id. IMPC_procedure links to the parameter description table through impcParameterOrigId, while parameter_group_member links parameters to their groups.
+
+chrom2 is stored as a separate table. It identifies genes using Ensembl gene_stable_id, whereas the other mouse gene tables use MGI gene_accession_id. Since the supplied data does not include a verified mapping between these identifiers, no relationship was created between chrom2 and the other tables. Its transcript and exon records remain available for queries using the Ensembl IDs and gene symbols in chrom2.
+
+
+
+```{sql connection=}
+CREATE TABLE mouse_gene (
+    gene_accession_id VARCHAR(20) NOT NULL,
+    gene_symbol VARCHAR(50),
+    PRIMARY KEY (gene_accession_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IMPC_parameter_description (
+    parameter_id VARCHAR(30) NOT NULL,
+    impcParameterOrigId VARCHAR(30) NOT NULL,
+    parameter_name VARCHAR(255),
+    description TEXT,
+    PRIMARY KEY (parameter_id),
+    UNIQUE (impcParameterOrigId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IMPC_procedure (
+    procedure_id BIGINT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255),
+    description TEXT,
+    isMandatory BOOLEAN,
+    impcParameterOrigId VARCHAR(30),
+    PRIMARY KEY (procedure_id),
+    FOREIGN KEY (impcParameterOrigId)
+        REFERENCES IMPC_parameter_description (impcParameterOrigId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE parameter_group (
+    group_id INT NOT NULL,
+    group_name VARCHAR(100) NOT NULL,
+    PRIMARY KEY (group_id),
+    UNIQUE (group_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE parameter_group_member (
+    group_id INT NOT NULL,
+    parameter_id VARCHAR(30) NOT NULL,
+    PRIMARY KEY (group_id, parameter_id),
+    FOREIGN KEY (group_id)
+        REFERENCES parameter_group (group_id),
+    FOREIGN KEY (parameter_id)
+        REFERENCES IMPC_parameter_description (parameter_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE clean_wide_data (
+    result_id BIGINT NOT NULL AUTO_INCREMENT,
+    source_file VARCHAR(30),
+    analysis_id VARCHAR(12),
+    gene_accession_id VARCHAR(20),
+    gene_symbol VARCHAR(50),
+    allele_symbol VARCHAR(100),
+    strain_name VARCHAR(100),
+    parameter_id VARCHAR(30),
+    pvalue DOUBLE,
+    parameter_name VARCHAR(255),
+    mouse_life_stage VARCHAR(30),
+    lacz_blood VARCHAR(50),
+    lacz_brain VARCHAR(50),
+    lacz_colon VARCHAR(50),
+    lacz_eye VARCHAR(50),
+    lacz_heart VARCHAR(50),
+    lacz_kidney VARCHAR(50),
+    lacz_liver VARCHAR(50),
+    lacz_lung VARCHAR(50),
+    lacz_skeletal_muscle VARCHAR(50),
+    lacz_skin VARCHAR(50),
+    lacz_vascular_system VARCHAR(50),
+    PRIMARY KEY (result_id),
+    FOREIGN KEY (gene_accession_id)
+        REFERENCES mouse_gene (gene_accession_id),
+    FOREIGN KEY (parameter_id)
+        REFERENCES IMPC_parameter_description (parameter_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE bespokeTask (
+    bespoke_task_id BIGINT NOT NULL AUTO_INCREMENT,
+    human_gene_symbol VARCHAR(50),
+    human_entrez_gene_id VARCHAR(20),
+    gene_symbol VARCHAR(50),
+    gene_accession_id VARCHAR(20),
+    high_level_mp_ids TEXT,
+    PRIMARY KEY (bespoke_task_id),
+    FOREIGN KEY (gene_accession_id)
+        REFERENCES mouse_gene (gene_accession_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE Disease_information (
+    disease_information_id BIGINT NOT NULL AUTO_INCREMENT,
+    human_gene_symbol VARCHAR(50),
+    human_gene_name VARCHAR(255),
+    hgnc_id VARCHAR(20),
+    do_term_name VARCHAR(255),
+    do_term_id VARCHAR(20),
+    mouse_genotype_ids TEXT,
+    gene_symbol VARCHAR(50),
+    gene_accession_id VARCHAR(20),
+    PRIMARY KEY (disease_information_id),
+    FOREIGN KEY (gene_accession_id)
+        REFERENCES mouse_gene (gene_accession_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE chrom2 (
+    chrom2_row_id BIGINT NOT NULL AUTO_INCREMENT,
+    gene_stable_id VARCHAR(20),
+    transcript_stable_id VARCHAR(20),
+    gene_symbol VARCHAR(50),
+    exon_stable_id VARCHAR(20),
+    exon_start_bp BIGINT,
+    exon_end_bp BIGINT,
+    exon_rank INT,
+    PRIMARY KEY (chrom2_row_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+
+#export
+```{r}
+# Export the tables needed for the database
+tables_to_export <- c(
+  "mouse_gene",
+  "IMPC_parameter_description",
+  "IMPC_procedure",
+  "parameter_group",
+  "parameter_group_member",
+  "clean_wide_data",
+  "bespokeTask",
+  "Disease_information",
+  "chrom2"
+)
+
+# Check that all required tables are available
+missing_tables <- setdiff(tables_to_export, ls())
+
+if (length(missing_tables) > 0) {
+  stop(
+    paste(
+      "These tables are missing from the R environment:",
+      paste(missing_tables, collapse = ", ")
+    )
+  )
+}
+
+# Create an output folder
+output_folder <- "database_import"
+dir.create(output_folder, showWarnings = FALSE)
+
+# Export each table as a CSV file
+for (table_name in tables_to_export) {
+  write.csv(
+    get(table_name),
+    file = file.path(output_folder, paste0(table_name, ".csv")),
+    row.names = FALSE,
+    na = "",
+    fileEncoding = "UTF-8"
+  )
+}
+
+# List the exported files
+list.files(output_folder)
+```
+
+#Import Order
+Import the tables in this order to ensure that each referenced table is available before its dependent tables. Several tables have foreign key relationships.
+
+mouse_gene
+IMPC_parameter_description
+parameter_group
+IMPC_procedure
+parameter_group_member
+clean_wide_data
+bespokeTask
+Disease_information
+chrom2
