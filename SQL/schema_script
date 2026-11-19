@@ -1,0 +1,153 @@
+CREATE DATABASE data_base
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_0900_ai_ci;
+
+USE data_base;
+
+-- Genes table
+CREATE TABLE genes (
+    gene_accession_id VARCHAR(32) PRIMARY KEY, -- e.g., MGI:2152878
+    ensembl_gene_id VARCHAR(32) UNIQUE,
+    mouse_gene_symbol VARCHAR(64) NOT NULL,  -- e.g., A1bg
+    human_gene_symbol VARCHAR(64),
+    human_gene_name VARCHAR(255),
+    INDEX idx_genes_mouse_symbol (mouse_gene_symbol),
+    INDEX idx_genes_human_symbol (human_gene_symbol)
+);
+
+-- LacZ expression per gene (one row per gene_accession_id)
+CREATE TABLE lacz_expression (
+    gene_accession_id VARCHAR(32) PRIMARY KEY,
+    blood VARCHAR(64),
+    brain VARCHAR(64),
+    colon VARCHAR(64),
+    eye VARCHAR(64),
+    heart VARCHAR(64),
+    kidney VARCHAR(64),
+    liver VARCHAR(64),
+    lung VARCHAR(64),
+    skeletal_muscle VARCHAR(64),
+    skin VARCHAR(64),
+    vascular_system VARCHAR(64),
+    CONSTRAINT fk_lacz_gene
+        FOREIGN KEY (gene_accession_id) REFERENCES genes(gene_accession_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Parameters catalog (aligned with IMPC_parameter_description.txt)
+CREATE TABLE parameters (
+    parameter_stable_id VARCHAR(64) PRIMARY KEY,
+    impc_orig_id INT,
+    procedure_code VARCHAR(32),
+    parameter_name VARCHAR(255) NOT NULL,
+    parameter_description TEXT,
+    INDEX idx_param_orig (impc_orig_id),
+    INDEX idx_param_proc (procedure_code),
+    INDEX idx_param_name (parameter_name)
+);
+
+-- Phenotype test rows
+CREATE TABLE phenotype_associations (
+    source_file VARCHAR(255),
+    analysis_id VARCHAR(128),
+    gene_accession_id VARCHAR(32) NOT NULL,
+    parameter_stable_id VARCHAR(64) NOT NULL,
+    allele_symbol VARCHAR(128),
+    strain_name VARCHAR(128),
+    mouse_life_stage VARCHAR(64),
+    p_value DOUBLE,
+    CONSTRAINT fk_pa_gene
+        FOREIGN KEY (gene_accession_id) REFERENCES genes(gene_accession_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_pa_param
+        FOREIGN KEY (parameter_stable_id) REFERENCES parameters(parameter_stable_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX idx_pa_gene (gene_accession_id),
+    INDEX idx_pa_param (parameter_stable_id),
+    INDEX idx_pa_pval (p_value)
+);
+
+-- Transcripts table
+CREATE TABLE transcripts (
+    transcript_stable_id VARCHAR(64) PRIMARY KEY, -- Transcript.stable.ID
+    ensembl_gene_id VARCHAR(64) NOT NULL,         -- Gene.stable.ID
+    gene_accession_id VARCHAR(32) NULL,           -- optional link if matched in `genes`
+    chromosome VARCHAR(16) NOT NULL,
+    CONSTRAINT fk_tx_gene
+        FOREIGN KEY (gene_accession_id) REFERENCES genes(gene_accession_id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_tx_ensembl_gene (ensembl_gene_id),
+    INDEX idx_tx_chrom (chromosome)
+);
+
+-- Exons table
+CREATE TABLE exons (
+    exon_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    transcript_stable_id VARCHAR(64) NOT NULL,
+    exon_stable_id VARCHAR(64) NOT NULL,          -- exon.stable.ID
+    start_bp BIGINT NOT NULL,                     -- exon.region.start.bp
+    end_bp BIGINT NOT NULL,                       -- exon.region.end.bp
+    exon_rank INT NOT NULL,                       -- exon.rank.in.transcript
+    CONSTRAINT fk_exon_tx
+        FOREIGN KEY (transcript_stable_id) REFERENCES transcripts(transcript_stable_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX idx_exon_stable (exon_stable_id)
+);
+
+-- Human diseases
+CREATE TABLE human_diseases (
+    disease_id VARCHAR(32) PRIMARY KEY,
+    disease_name VARCHAR(255) NOT NULL,
+    source_db VARCHAR(32),
+    INDEX idx_disease_name (disease_name)
+);
+
+-- Gene to human disease mapping
+CREATE TABLE gene_human_diseases (
+    gene_accession_id VARCHAR(32) NOT NULL,
+    disease_id VARCHAR(32) NOT NULL,
+    evidence_code VARCHAR(32),
+    PRIMARY KEY (gene_accession_id, disease_id),
+    CONSTRAINT fk_ghd_gene
+        FOREIGN KEY (gene_accession_id) REFERENCES genes(gene_accession_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_ghd_disease
+        FOREIGN KEY (disease_id) REFERENCES human_diseases(disease_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Disease mouse models
+CREATE TABLE disease_mouse_models (
+    disease_id VARCHAR(32) NOT NULL,
+    gene_accession_id VARCHAR(32) NOT NULL,
+    allele_accession_id VARCHAR(32) NOT NULL,
+    strain_name VARCHAR(128) NOT NULL,
+    model_description VARCHAR(512),
+    PRIMARY KEY (disease_id, gene_accession_id, allele_accession_id, strain_name),
+    CONSTRAINT fk_dmm_disease
+        FOREIGN KEY (disease_id) REFERENCES human_diseases(disease_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_dmm_gene
+        FOREIGN KEY (gene_accession_id) REFERENCES genes(gene_accession_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+
+USE data_base;
+
+-- 1. Adapt `genes` to store the NCBI/Entre gene ID from bespokeTask.txt
+ALTER TABLE genes
+    ADD COLUMN ncbi_gene_id INT NULL AFTER gene_accession_id,
+    ADD INDEX idx_genes_ncbi_id (ncbi_gene_id);
+
+-- 2. Table for Mammalian Phenotype (MP) terms
+CREATE TABLE mp_terms (
+    mp_term_id VARCHAR(32) PRIMARY KEY, -- e.g., MP:0005367
+    mp_term_name VARCHAR(255) NULL,
+    INDEX idx_mp_term_name (mp_term_name)
+);
+
+
+SHOW TABLES;
+
+
