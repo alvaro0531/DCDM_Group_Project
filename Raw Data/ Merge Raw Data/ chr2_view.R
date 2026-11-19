@@ -5,3 +5,5 @@ chrom2 <- read.delim("Raw Data/chrom2.txt", sep = "\t", header = TRUE)
 View(chrom2)
 #this is ready 
 
+# saving the file
+write.csv(chrom2, file = "chrom2.csv", row.names = FALSE)
