@@ -151,3 +151,129 @@ CREATE TABLE mp_terms (
 SHOW TABLES;
 
 
+
+
+
+
+
+-- Finishing touches to the schema upon feedback 
+
+
+
+USE data_base;
+
+CREATE TABLE parameter_group (
+    group_id INT AUTO_INCREMENT PRIMARY KEY,
+    group_name VARCHAR(128) NOT NULL UNIQUE,
+);
+
+CREATE TABLE parameter_group_member (
+    group_id INT NOT NULL,
+    parameter_stable_id VARCHAR(64) NOT NULL,
+    PRIMARY KEY (group_id, parameter_stable_id),
+    CONSTRAINT fk_pgm_group
+        FOREIGN KEY (group_id) REFERENCES parameter_group(group_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_pgm_param
+        FOREIGN KEY (parameter_stable_id) REFERENCES parameters(parameter_stable_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+
+CREATE TABLE procedures (
+    procedure_code VARCHAR(32) PRIMARY KEY,
+    procedure_name VARCHAR(255) NOT NULL,
+    procedure_description TEXT,
+    is_mandatory BOOLEAN NULL
+);
+
+-- Populate `procedures` BEFORE adding the foreign key on `parameters`
+ALTER TABLE parameters
+    ADD INDEX idx_param_proc_fk (procedure_code),
+    ADD CONSTRAINT fk_param_procedure
+        FOREIGN KEY (procedure_code) REFERENCES procedures(procedure_code)
+        ON DELETE RESTRICT ON UPDATE CASCADE;
+
+
+ALTER TABLE genes
+    ADD COLUMN human_entrez_gene_id INT NULL AFTER human_gene_name,
+    ADD INDEX idx_genes_human_entrez (human_entrez_gene_id);
+
+CREATE TABLE gene_high_level_mp_terms (
+    gene_accession_id VARCHAR(32) NOT NULL,
+    high_level_mp_id VARCHAR(32) NOT NULL,
+    PRIMARY KEY (gene_accession_id, high_level_mp_id),
+    CONSTRAINT fk_ghlmp_gene
+        FOREIGN KEY (gene_accession_id) REFERENCES genes(gene_accession_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+
+ALTER TABLE human_diseases
+    ADD COLUMN hgnc_id VARCHAR(32) NULL AFTER source_db;
+
+ALTER TABLE disease_mouse_models
+    ADD COLUMN mouse_genotype_id VARCHAR(64) NULL AFTER disease_id,
+    ADD COLUMN strain_accession_id VARCHAR(32) NULL AFTER strain_name;
+
+ALTER TABLE phenotype_associations
+    MODIFY COLUMN analysis_id VARCHAR(128) NOT NULL,
+    ADD PRIMARY KEY (analysis_id);
+
+
+CREATE TABLE IF NOT EXISTS parameter_group_external_data (
+    external_record_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id INT NOT NULL,
+    resource_name VARCHAR(128) NOT NULL,       -- e.g., UniProt, Ensembl, STRING, MGI/MP, COSMIC
+    external_id VARCHAR(64) NOT NULL,          -- ID from the external resource
+    term_or_label VARCHAR(255) NULL,           -- name, pathway, GO term, protein feature, etc.
+    notes TEXT NULL,
+    gene_accession_id VARCHAR(32) NULL,
+    CONSTRAINT fk_pged_group
+        FOREIGN KEY (group_id) REFERENCES parameter_group(group_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_pged_gene
+        FOREIGN KEY (gene_accession_id) REFERENCES genes(gene_accession_id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_pged_group_res (group_id, resource_name),
+    INDEX idx_pged_ext_id (external_id)
+);
+
+
+CREATE TABLE IF NOT EXISTS human_phenotype_bespoke (
+    bespoke_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    human_marker_symbol VARCHAR(64) NULL,
+    human_entrez_gene_id INT NULL,
+    mouse_marker_symbol VARCHAR(64) NULL,
+    mgi_marker_accession_id VARCHAR(32) NULL,
+    high_level_mp_id VARCHAR(32) NOT NULL,
+    hp_term_name VARCHAR(255) NULL,
+    hp_description TEXT NULL,
+    overlaps_impc BOOLEAN NOT NULL DEFAULT FALSE,
+    gene_accession_id VARCHAR(32) NULL,
+    CONSTRAINT fk_hpb_gene
+        FOREIGN KEY (gene_accession_id) REFERENCES genes(gene_accession_id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_hpb_mgi (mgi_marker_accession_id),
+    INDEX idx_hpb_mp (high_level_mp_id),
+    INDEX idx_hpb_overlap (overlaps_impc)
+);
+
+DESCRIBE parameter_group;
+DESCRIBE parameter_group_member;
+SELECT * FROM parameter_group;
+SELECT * FROM parameter_group_member LIMIT 20;
+
+
+INSERT IGNORE INTO parameter_group (group_name)
+VALUES
+    ('Weight'),
+    ('Images'),
+    ('Brain'),
+    ('Haematology and immunophenotyping'),
+    ('Behaviour'),
+    ('Clinical chemistry and metabolism');
+
+
+SELECT * FROM parameter_group;
+-- checking to make sure the 6 groups i.e imaging, brain are added
