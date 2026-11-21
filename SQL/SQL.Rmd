@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ### Standard
+
 ```{r}
 # Standardise the bespokeTask column names
 names(bespokeTask) <- c(
@@ -31,8 +32,6 @@ names(Disease_information) <- c(
   "gene_accession_id"
 )
 ```
-
-
 
 ### Parameter catalogue
 
@@ -280,8 +279,6 @@ knitr::kable(group_counts)
 
 This step checks whether the same parameter–group assignment appears more than once and whether any parameter has been assigned to multiple groups. These checks help identify duplicate or overlapping assignments for review.
 
-
-
 ```{r}
 # Find repeated parameter-to-group assignments
 duplicate_memberships <- parameter_group_candidates[
@@ -307,7 +304,7 @@ multiple_group_assignments <- groups_per_parameter[
 View(multiple_group_assignments)
 ```
 
-### Create the parameter_group and  parameter_group_member tables
+### Create the parameter_group and parameter_group_member tables
 
 This step creates two related tables. `parameter_group` stores one row per group, while `parameter_group_member` links each group to its parameter IDs. Together, they represent the many-to-many relationship between parameters and groups.
 
@@ -346,9 +343,6 @@ sum(!parameter_group_member$parameter_id %in% parameter_catalog$parameter_id)
 View(parameter_group)
 View(parameter_group_member)
 ```
-
-
-
 
 ### Standardise column names and inspect tables
 
@@ -440,8 +434,6 @@ for (table_name in tables_to_check) {
 
 This step collects mouse MGI accession IDs and gene symbols from the main results, bespoke task, and disease information tables. It creates one row per MGI ID. When an ID is associated with conflicting symbols, the symbol is left blank for review instead of choosing one automatically.
 
-
-
 ```{r}
 # Combine mouse gene IDs and symbols from the three tables
 gene_source <- rbind(
@@ -492,11 +484,11 @@ View(mouse_gene)
 
 ### Create the SQL database schema
 
+#first version
+
 The database is organised around the identifiers shared by the data. mouse_gene provides one record for each MGI gene accession ID and links the mouse gene data in clean_wide_data, bespokeTask, and Disease_information. clean_wide_data also links to IMPC_parameter_description through parameter_id. IMPC_procedure links to the parameter description table through impcParameterOrigId, while parameter_group_member links parameters to their groups.
 
 chrom2 is stored as a separate table. It identifies genes using Ensembl gene_stable_id, whereas the other mouse gene tables use MGI gene_accession_id. Since the supplied data does not include a verified mapping between these identifiers, no relationship was created between chrom2 and the other tables. Its transcript and exon records remain available for queries using the Ensembl IDs and gene symbols in chrom2.
-
-
 
 ```{sql connection=}
 CREATE TABLE mouse_gene (
@@ -613,61 +605,338 @@ CREATE TABLE chrom2 (
 ```
 
 
-#export
-```{r}
-# Export the tables needed for the database
-tables_to_export <- c(
-  "mouse_gene",
-  "IMPC_parameter_description",
-  "IMPC_procedure",
-  "parameter_group",
-  "parameter_group_member",
-  "clean_wide_data",
-  "bespokeTask",
-  "Disease_information",
-  "chrom2"
-)
+#final version
 
-# Check that all required tables are available
-missing_tables <- setdiff(tables_to_export, ls())
+```{sql connection=}
 
-if (length(missing_tables) > 0) {
-  stop(
-    paste(
-      "These tables are missing from the R environment:",
-      paste(missing_tables, collapse = ", ")
-    )
-  )
-}
 
-# Create an output folder
-output_folder <- "database_import"
-dir.create(output_folder, showWarnings = FALSE)
+-- ==============================================
+-- IMPC DATABASE SCHEMA
+-- 18 Tables
+-- MySQL 8.0
+-- ==============================================
 
-# Export each table as a CSV file
-for (table_name in tables_to_export) {
-  write.csv(
-    get(table_name),
-    file = file.path(output_folder, paste0(table_name, ".csv")),
-    row.names = FALSE,
-    na = "",
-    fileEncoding = "UTF-8"
-  )
-}
+-- 1. MOUSE GENE
 
-# List the exported files
-list.files(output_folder)
+CREATE TABLE IF NOT EXISTS mouse_gene (
+    gene_accession_id VARCHAR(32) PRIMARY KEY,
+    gene_symbol VARCHAR(64),
+
+    INDEX idx_mouse_symbol (gene_symbol)
+) ENGINE=InnoDB;
+
+
+-- 2. HUMAN GENE
+
+CREATE TABLE IF NOT EXISTS human_gene (
+    human_gene_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    human_gene_symbol VARCHAR(64),
+    human_gene_name VARCHAR(255),
+    human_entrez_gene_id VARCHAR(32),
+    hgnc_id VARCHAR(32),
+
+    INDEX idx_human_entrez (human_entrez_gene_id),
+    INDEX idx_hgnc (hgnc_id)
+) ENGINE=InnoDB;
+
+
+-- 3. IMPC PARAMETER DESCRIPTION
+
+CREATE TABLE IF NOT EXISTS IMPC_parameter_description (
+    parameter_id VARCHAR(64) PRIMARY KEY,
+    impcParameterOrigId VARCHAR(64),
+    parameter_name VARCHAR(255),
+    description TEXT,
+
+    INDEX idx_param_orig (impcParameterOrigId)
+) ENGINE=InnoDB;
+
+
+-- 4. IMPC PROCEDURE
+
+CREATE TABLE IF NOT EXISTS IMPC_procedure (
+    procedure_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255),
+    description TEXT,
+    isMandatory BOOLEAN,
+    impcParameterOrigId VARCHAR(64),
+
+    INDEX idx_proc_orig (impcParameterOrigId)
+) ENGINE=InnoDB;
+
+
+-- 5. PROCEDURE-PARAMETER RELATIONSHIP
+
+CREATE TABLE IF NOT EXISTS IMPC_procedure_parameter (
+    procedure_id BIGINT NOT NULL,
+    parameter_id VARCHAR(64) NOT NULL,
+
+    PRIMARY KEY (procedure_id, parameter_id),
+
+    CONSTRAINT fk_ipp_procedure
+        FOREIGN KEY (procedure_id)
+        REFERENCES IMPC_procedure(procedure_id),
+
+    CONSTRAINT fk_ipp_parameter
+        FOREIGN KEY (parameter_id)
+        REFERENCES IMPC_parameter_description(parameter_id)
+) ENGINE=InnoDB;
+
+
+-- 6. PARAMETER GROUP
+
+CREATE TABLE IF NOT EXISTS parameter_group (
+    group_id INT PRIMARY KEY,
+    group_name VARCHAR(128) NOT NULL UNIQUE
+) ENGINE=InnoDB;
+
+
+-- 7. PARAMETER GROUP MEMBER
+
+CREATE TABLE IF NOT EXISTS parameter_group_member (
+    group_id INT NOT NULL,
+    parameter_id VARCHAR(64) NOT NULL,
+
+    PRIMARY KEY (group_id, parameter_id),
+
+    CONSTRAINT fk_pgm_group
+        FOREIGN KEY (group_id)
+        REFERENCES parameter_group(group_id),
+
+    CONSTRAINT fk_pgm_parameter
+        FOREIGN KEY (parameter_id)
+        REFERENCES IMPC_parameter_description(parameter_id)
+) ENGINE=InnoDB;
+
+
+-- 8. CLEAN WIDE DATA
+
+CREATE TABLE IF NOT EXISTS clean_wide_data (
+    result_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+
+    source_file VARCHAR(255),
+    analysis_id VARCHAR(128),
+
+    gene_accession_id VARCHAR(32),
+    gene_symbol VARCHAR(64),
+
+    allele_symbol VARCHAR(128),
+    strain_name VARCHAR(128),
+    mouse_life_stage VARCHAR(64),
+
+    parameter_id VARCHAR(64),
+    parameter_name VARCHAR(255),
+    pvalue DOUBLE,
+
+    CONSTRAINT fk_cwd_gene
+        FOREIGN KEY (gene_accession_id)
+        REFERENCES mouse_gene(gene_accession_id),
+
+    CONSTRAINT fk_cwd_parameter
+        FOREIGN KEY (parameter_id)
+        REFERENCES IMPC_parameter_description(parameter_id),
+
+    CONSTRAINT chk_pvalue
+        CHECK (
+            pvalue IS NULL
+            OR (pvalue >= 0 AND pvalue <= 1)
+        ),
+
+    INDEX idx_result_analysis (analysis_id),
+    INDEX idx_result_gene (gene_accession_id),
+    INDEX idx_result_parameter (parameter_id)
+) ENGINE=InnoDB;
+
+
+-- 9. LACZ EXPRESSION
+
+CREATE TABLE IF NOT EXISTS lacz_expression (
+    result_id BIGINT PRIMARY KEY,
+
+    lacz_blood VARCHAR(64),
+    lacz_brain VARCHAR(64),
+    lacz_colon VARCHAR(64),
+    lacz_eye VARCHAR(64),
+    lacz_heart VARCHAR(64),
+    lacz_kidney VARCHAR(64),
+    lacz_liver VARCHAR(64),
+    lacz_lung VARCHAR(64),
+    lacz_skeletal_muscle VARCHAR(64),
+    lacz_skin VARCHAR(64),
+    lacz_vascular_system VARCHAR(64),
+
+    CONSTRAINT fk_lacz_result
+        FOREIGN KEY (result_id)
+        REFERENCES clean_wide_data(result_id)
+) ENGINE=InnoDB;
+
+
+-- 10. BESPOKE TASK
+
+CREATE TABLE IF NOT EXISTS bespokeTask (
+    bespoke_task_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+
+    human_gene_symbol VARCHAR(64),
+    human_entrez_gene_id VARCHAR(32),
+
+    gene_symbol VARCHAR(64),
+    gene_accession_id VARCHAR(32),
+
+    high_level_mp_ids TEXT,
+    human_gene_id BIGINT,
+
+    CONSTRAINT fk_bespoke_mouse_gene
+        FOREIGN KEY (gene_accession_id)
+        REFERENCES mouse_gene(gene_accession_id),
+
+    CONSTRAINT fk_bespoke_human_gene
+        FOREIGN KEY (human_gene_id)
+        REFERENCES human_gene(human_gene_id)
+) ENGINE=InnoDB;
+
+
+-- 11. MAMMALIAN PHENOTYPE TERMS
+
+CREATE TABLE IF NOT EXISTS mp_terms (
+    mp_term_id VARCHAR(32) PRIMARY KEY,
+    mp_term_name VARCHAR(255)
+) ENGINE=InnoDB;
+
+
+-- 12. BESPOKE-MP RELATIONSHIP
+
+CREATE TABLE IF NOT EXISTS bespokeTask_mp (
+    bespoke_task_id BIGINT NOT NULL,
+    mp_term_id VARCHAR(32) NOT NULL,
+
+    PRIMARY KEY (bespoke_task_id, mp_term_id),
+
+    CONSTRAINT fk_bmp_bespoke
+        FOREIGN KEY (bespoke_task_id)
+        REFERENCES bespokeTask(bespoke_task_id),
+
+    CONSTRAINT fk_bmp_mp
+        FOREIGN KEY (mp_term_id)
+        REFERENCES mp_terms(mp_term_id)
+) ENGINE=InnoDB;
+
+
+-- 13. HUMAN DISEASES
+
+CREATE TABLE IF NOT EXISTS human_diseases (
+    do_term_id VARCHAR(32) PRIMARY KEY,
+    do_term_name VARCHAR(255)
+) ENGINE=InnoDB;
+
+
+-- 14. DISEASE INFORMATION
+
+CREATE TABLE IF NOT EXISTS Disease_information (
+    disease_information_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+
+    human_gene_symbol VARCHAR(64),
+    human_gene_name VARCHAR(255),
+    hgnc_id VARCHAR(32),
+
+    do_term_name VARCHAR(255),
+    do_term_id VARCHAR(32),
+
+    mouse_genotype_ids TEXT,
+
+    gene_symbol VARCHAR(64),
+    gene_accession_id VARCHAR(32),
+    human_gene_id BIGINT,
+
+    CONSTRAINT fk_disease_mouse_gene
+        FOREIGN KEY (gene_accession_id)
+        REFERENCES mouse_gene(gene_accession_id),
+
+    CONSTRAINT fk_disease_human_gene
+        FOREIGN KEY (human_gene_id)
+        REFERENCES human_gene(human_gene_id),
+
+    CONSTRAINT fk_disease_ontology
+        FOREIGN KEY (do_term_id)
+        REFERENCES human_diseases(do_term_id)
+) ENGINE=InnoDB;
+
+
+-- 15. DISEASE INFORMATION-GENOTYPE
+
+CREATE TABLE IF NOT EXISTS Disease_information_genotype (
+    disease_information_id BIGINT NOT NULL,
+    mouse_genotype_id VARCHAR(255) NOT NULL,
+
+    PRIMARY KEY (
+        disease_information_id,
+        mouse_genotype_id
+    ),
+
+    CONSTRAINT fk_dig_disease
+        FOREIGN KEY (disease_information_id)
+        REFERENCES Disease_information(disease_information_id)
+) ENGINE=InnoDB;
+
+
+-- 16. CHROMOSOME 2 TRANSCRIPT
+
+CREATE TABLE IF NOT EXISTS chrom2_transcript (
+    transcript_stable_id VARCHAR(64) PRIMARY KEY,
+    gene_stable_id VARCHAR(64),
+    gene_symbol VARCHAR(64),
+
+    INDEX idx_chrom2_gene_stable (gene_stable_id)
+) ENGINE=InnoDB;
+
+
+-- 17. CHROMOSOME 2 EXON RECORDS
+
+CREATE TABLE IF NOT EXISTS chrom2 (
+    chrom2_row_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+
+    transcript_stable_id VARCHAR(64) NOT NULL,
+    exon_stable_id VARCHAR(64),
+
+    exon_start_bp BIGINT,
+    exon_end_bp BIGINT,
+    exon_rank INT,
+
+    CONSTRAINT fk_chrom2_transcript
+        FOREIGN KEY (transcript_stable_id)
+        REFERENCES chrom2_transcript(transcript_stable_id),
+
+    INDEX idx_chrom2_exon (exon_stable_id)
+) ENGINE=InnoDB;
+
+
+-- 18. PARAMETER GROUP EXTERNAL DATA
+
+CREATE TABLE IF NOT EXISTS parameter_group_external_data (
+    external_record_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+
+    group_id INT NOT NULL,
+
+    resource_name VARCHAR(128) NOT NULL,
+    external_id VARCHAR(64) NOT NULL,
+
+    term_or_label VARCHAR(255),
+    notes TEXT,
+
+    gene_accession_id VARCHAR(32),
+
+    CONSTRAINT fk_external_group
+        FOREIGN KEY (group_id)
+        REFERENCES parameter_group(group_id),
+
+    CONSTRAINT fk_external_gene
+        FOREIGN KEY (gene_accession_id)
+        REFERENCES mouse_gene(gene_accession_id),
+
+    INDEX idx_external_group (group_id, resource_name),
+    INDEX idx_external_id (external_id)
+) ENGINE=InnoDB;
+
+
+
 ```
 
-#Import Order
-Import the tables in this order to ensure that each referenced table is available before its dependent tables. Several tables have foreign key relationships.
-
-mouse_gene
-IMPC_parameter_description
-parameter_group
-IMPC_procedure
-parameter_group_member
-clean_wide_data
-bespokeTask
-Disease_information
-chrom2
