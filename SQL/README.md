@@ -4,7 +4,7 @@
 
 ## Overall Workflow Summary
 
-cleaned CSV files from team members + 2 previously generated Parameter Group CSV files → 8 input CSV files → Run `build_impc_import_tables.R` → Automatically generate 18 `_import.csv` files → Import them into `data_base_merged` using DBeaver in the specified order.**
+cleaned CSV files from team members + 2 previously generated Parameter Group CSV files → 8 input CSV files → Run `build_impc_import_tables.R` → Automatically generate 18 `_import.csv` files → Import them into `data_base_merged` using DBeaver in the specified order.
 
 
 
