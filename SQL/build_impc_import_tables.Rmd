@@ -11,16 +11,17 @@ output:
     code_folding: hide
 ---
 
-Overview
+# Overview
 
 We developed this R Markdown file to document how the database import tables are prepared from the cleaned Group 14 datasets. The pipeline transforms eight input CSV files into eighteen related tables for MySQL. The explanations follow the same order as the R code, so the decisions and relationships are clear alongside each processing step.
 
-The main phenotype results table is named clean_data. The R Markdown focuses on restructuring, checking, and exporting database-ready data. Upstream cleaning and missing-value imputation are covered separately by the data-cleaning workstream.
+The main phenotype results table is named `clean_data`. The R Markdown focuses on restructuring, checking, and exporting database-ready data. Upstream cleaning and missing-value imputation are covered separately by the data-cleaning workstream.
 
-Project structure
+## Project structure
 
-We keep the R Markdown file in the root directory of the IMPC_Project RStudio project. The cleaned source files and the two parameter-group files are stored in database_import/. The script creates database_import_revised/ for its outputs.
+We keep the R Markdown file in the root directory of the `IMPC_Project` RStudio project. The cleaned source files and the two parameter-group files are stored in `database_import/`. The script creates `database_import_revised/` for its outputs.
 
+``` text
 IMPC_Project/
 ├── IMPC_Project.Rproj
 ├── build_impc_import_tables.Rmd
@@ -34,65 +35,42 @@ IMPC_Project/
 │   ├── parameter_group.csv
 │   └── parameter_group_member.csv
 └── database_import_revised/         # Created during conversion
+```
 
-Running the pipeline
+## Running the pipeline
 
-The code chunks are intended to run sequentially in RStudio. We use Run All Chunks to execute the conversion from start to finish and review intermediate objects when needed. Knit can also render an HTML record of the workflow; this requires the rmarkdown package and runs the chunks in a fresh R environment.
+The code chunks are intended to run sequentially in RStudio. We use **Run All Chunks** to execute the conversion from start to finish and review intermediate objects when needed. **Knit** can also render an HTML record of the workflow; this requires the `rmarkdown` package and runs the chunks in a fresh R environment.
 
-The .Rmd file is not executed with source(), which is intended for ordinary .R scripts. A successful run produces eighteen *_import.csv files and two supporting reports: import_summary.csv and validation_notes.txt.
+The `.Rmd` file is not executed with `source()`, which is intended for ordinary `.R` scripts. A successful run produces eighteen `*_import.csv` files and two supporting reports: `import_summary.csv` and `validation_notes.txt`.
 
-{r setup, include=FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = TRUE, warning = TRUE, error = FALSE)
+```
 
-Database tables produced
+## Database tables produced
 
 The final outputs cover mouse and human gene references, parameters and procedures, the six parameter groups, phenotype results, LacZ expression, bespoke and disease annotations, and chromosome 2 records.
 
-Data area
-
-MySQL tables
-
-Gene references
-
-mouse_gene, human_gene
-
-Procedures and parameters
-
-IMPC_procedure, IMPC_parameter_description
-
-Parameter grouping
-
-parameter_group, parameter_group_member
-
-Phenotype results and LacZ
-
-clean_data, lacz_expression
-
-Bespoke data and MP terms
-
-bespokeTask, mp_terms, bespokeTask_mp
-
-Disease associations and genotypes
-
-human_diseases, Disease_information, Disease_information_genotype
-
-Chromosome 2
-
-chrom2_gene, chrom2_transcript, chrom2
-
-External scientific annotations
-
-parameter_group_external_data
+| Data area | MySQL tables |
+|----|----|
+| Gene references | `mouse_gene`, `human_gene` |
+| Procedures and parameters | `IMPC_procedure`, `IMPC_parameter_description` |
+| Parameter grouping | `parameter_group`, `parameter_group_member` |
+| Phenotype results and LacZ | `clean_data`, `lacz_expression` |
+| Bespoke data and MP terms | `bespokeTask`, `mp_terms`, `bespokeTask_mp` |
+| Disease associations and genotypes | `human_diseases`, `Disease_information`, `Disease_information_genotype` |
+| Chromosome 2 | `chrom2_gene`, `chrom2_transcript`, `chrom2` |
+| External scientific annotations | `parameter_group_external_data` |
 
 The following sections contain executable code chunks. Each stage uses objects created earlier in the workflow.
 
-Configuration and helper functions
+## Configuration and helper functions
 
 We first define the input and output directories and the functions needed for data conversion. These functions handle missing values, numeric and Boolean fields, reference-table consolidation, multi-valued identifiers, and relational integrity checks.
 
-The read_source() function reads identifiers as character data and recognises empty CSV cells and the literal NA as missing values. The validation functions stop when conflicting records or invalid keys are encountered rather than silently excluding the affected rows.
+The `read_source()` function reads identifiers as character data and recognises empty CSV cells and the literal `NA` as missing values. The validation functions stop when conflicting records or invalid keys are encountered rather than silently excluding the affected rows.
 
-{r configuration-and-helpers}
+```{r configuration-and-helpers}
 # Group 14 IMPC: updated 8-input -> 18-table MySQL CSV converter.
 # Input: database_import/*.csv (the six accepted cleaned CSVs plus two group CSVs).
 # Output: database_import_revised/*_import.csv and validation reports.
@@ -235,12 +213,13 @@ expand_relationship <- function(row_id, value, colname, delimiter) {
   rownames(out) <- NULL
   out
 }
+```
 
-Step 1. Read the source datasets
+## Step 1. Read the source datasets
 
-We import six cleaned datasets and two parameter-group tables. The script verifies the expected column names before making any changes to the data structure. An optional external_raw.csv can also be read when group-specific external annotations are available. This stage does not repeat the original data-cleaning work.
+We import six cleaned datasets and two parameter-group tables. The script verifies the expected column names before making any changes to the data structure. An optional `external_raw.csv` can also be read when group-specific external annotations are available. This stage does not repeat the original data-cleaning work.
 
-{r read-inputs}
+```{r read-inputs}
 # ---------- 1. Read the eight accepted input files ----------
 wide <- read_source("Group14_Cleaned_Imputed_Dataset.csv")
 params <- read_source("Parameters.csv")
@@ -276,12 +255,13 @@ require_cols(chrom, c("ensembl_gene_id", "ensembl_transcript_id", "gene_name",
 require_cols(groups, c("group_id", "group_name"), "parameter_group.csv")
 require_cols(members, c("group_id", "parameter_id"),
              "parameter_group_member.csv")
+```
 
-Step 2. Build the mouse gene reference
+## Step 2. Build the mouse gene reference
 
-The mouse gene reference is assembled from four sources: the phenotype analyses, bespoke dataset, disease data, and chromosome 2 file. We combine their MGI accession IDs and keep one reference record for each distinct gene_accession_id. Conflicting non-missing gene symbols for the same accession are treated as errors rather than being merged arbitrarily.
+The mouse gene reference is assembled from four sources: the phenotype analyses, bespoke dataset, disease data, and chromosome 2 file. We combine their MGI accession IDs and keep one reference record for each distinct `gene_accession_id`. Conflicting non-missing gene symbols for the same accession are treated as errors rather than being merged arbitrarily.
 
-{r mouse-genes}
+```{r mouse-genes}
 # ---------- 2. Four-source mouse gene reference ----------
 gene_source <- rbind(
   wide[c("gene_accession_id", "gene_symbol")],
@@ -293,12 +273,13 @@ mouse_gene_import <- reference_by_key(gene_source, "gene_accession_id",
                                       "gene_symbol", "mouse_gene")
 if (anyNA(mouse_gene_import$gene_symbol))
   note("WARNING: some mouse genes have no known symbol (preserved as NULL)")
+```
 
-Step 3. Prepare the procedure and parameter tables
+## Step 3. Prepare the procedure and parameter tables
 
-The prepared Procedures.csv uses procedure_code to identify individual procedures. The parameter catalogue contains the same field, which allows each parameter to reference its procedure directly. We retain impc_parameter_orig_id as source metadata rather than using it as the relationship key. Boolean fields are converted into 0 and 1 for MySQL import.
+The prepared `Procedures.csv` uses `procedure_code` to identify individual procedures. The parameter catalogue contains the same field, which allows each parameter to reference its procedure directly. We retain `impc_parameter_orig_id` as source metadata rather than using it as the relationship key. Boolean fields are converted into `0` and `1` for MySQL import.
 
-{r parameters-procedures}
+```{r parameters-procedures}
 # ---------- 3. Procedures and the parameter catalogue ----------
 IMPC_procedure_import <- procedures[c("procedure_code", "procedure_name",
                                       "procedure_description", "is_mandatory")]
@@ -322,12 +303,13 @@ if (anyNA(IMPC_parameter_description_import$parameter_name))
 
 # The source has an identified procedure_code for each applicable parameter.
 # Do not reconstruct mappings using impc_parameter_orig_id (version identifier).
+```
 
-Step 4. Prepare the six parameter groups
+## Step 4. Prepare the six parameter groups
 
-We use the group identifiers and memberships from parameter_group.csv and parameter_group_member.csv. These tables preserve the six selected phenotype categories and the parameter assignments produced during the grouping work. The subsequent validation confirms that each assigned parameter is present in the updated parameter catalogue.
+We use the group identifiers and memberships from `parameter_group.csv` and `parameter_group_member.csv`. These tables preserve the six selected phenotype categories and the parameter assignments produced during the grouping work. The subsequent validation confirms that each assigned parameter is present in the updated parameter catalogue.
 
-{r parameter-groups}
+```{r parameter-groups}
 # ---------- 4. Parameter groups, preserving supplied group IDs ----------
 parameter_group_import <- groups[c("group_id", "group_name")]
 parameter_group_import$group_id <- nullable_integer(
@@ -343,12 +325,13 @@ parameter_group_member_import$group_id <- nullable_integer(
   positive = TRUE)
 parameter_group_member_import$parameter_id <- clean_string(
   parameter_group_member_import$parameter_id)
+```
 
-Step 5. Separate phenotype analyses and LacZ expression
+## Step 5. Separate phenotype analyses and LacZ expression
 
-We preserve one record for each input phenotype analysis and assign a consistent result_id. The general analysis fields are stored in clean_data, while the eleven tissue-specific LacZ fields are stored in lacz_expression using the same result_id. The source column p_value is mapped to the database column pvalue. Before omitting the redundant parameter-name field from the results table, the script checks that source names agree with the parameter reference table.
+We preserve one record for each input phenotype analysis and assign a consistent `result_id`. The general analysis fields are stored in `clean_data`, while the eleven tissue-specific LacZ fields are stored in `lacz_expression` using the same `result_id`. The source column `p_value` is mapped to the database column `pvalue`. Before omitting the redundant parameter-name field from the results table, the script checks that source names agree with the parameter reference table.
 
-{r phenotype-lacz}
+```{r phenotype-lacz}
 # ---------- 5. Phenotype result and LacZ tables ----------
 wide$result_id <- seq_len(nrow(wide))
 clean_data_import <- wide[c("result_id", "analysis_id", "source_file",
@@ -372,12 +355,13 @@ if (any(name_diff))
   fail("Phenotype parameter_name disagrees with Parameters.csv (first analysis_id: ",
        wide$analysis_id[which(name_diff)[1]], ")")
 lacz_expression_import <- wide[c("result_id", lacz_cols)]
+```
 
-Step 6. Build the human gene reference
+## Step 6. Build the human gene reference
 
 Human Entrez and HGNC identifiers originate from different source files. We construct their reference records separately rather than assuming that an Entrez ID and an HGNC ID are an established one-to-one match. This preserves the available identifiers without creating unsupported links across sources.
 
-{r human-genes}
+```{r human-genes}
 # ---------- 6. Human references (never silently merge Entrez and HGNC) ----------
 entrez_input <- data.frame(
   human_entrez_gene_id = clean_string(bespoke$human_entrez_gene_id),
@@ -405,12 +389,13 @@ human_gene_import <- rbind(
 human_gene_import$human_gene_id <- seq_len(nrow(human_gene_import))
 human_gene_import <- human_gene_import[c("human_gene_id", "human_gene_symbol",
   "human_gene_name", "human_entrez_gene_id", "hgnc_id")]
+```
 
-Step 7. Separate bespoke records and MP annotations
+## Step 7. Separate bespoke records and MP annotations
 
-The bespoke source records are retained, including the in_impc_dataset field identifying overlap with the analysed IMPC genes. Comma-separated values in high_level_mp_ids are expanded into individual Mammalian Phenotype identifiers. These are stored in mp_terms and connected to their source records through bespokeTask_mp. Where available, the corresponding human gene reference is also linked.
+The bespoke source records are retained, including the `in_impc_dataset` field identifying overlap with the analysed IMPC genes. Comma-separated values in `high_level_mp_ids` are expanded into individual Mammalian Phenotype identifiers. These are stored in `mp_terms` and connected to their source records through `bespokeTask_mp`. Where available, the corresponding human gene reference is also linked.
 
-{r bespoke-mp}
+```{r bespoke-mp}
 # ---------- 7. Bespoke records, MP terms and their relationships ----------
 bespoke$bespoke_task_id <- seq_len(nrow(bespoke))
 bespokeTask_import <- bespoke[c("bespoke_task_id", "human_gene_symbol",
@@ -440,12 +425,13 @@ if (nrow(bespokeTask_mp_import) &&
 mp_terms_import <- data.frame(
   mp_term_id = sort(unique(bespokeTask_mp_import$mp_term_id)),
   mp_term_name = NA_character_, stringsAsFactors = FALSE)
+```
 
-Step 8. Separate disease records and genotype identifiers
+## Step 8. Separate disease records and genotype identifiers
 
-We retain the disease information records and the original mouse_genotype_ids field for traceability. The genotype IDs are separated by a vertical bar (|) in the supplied dataset, so they are expanded into individual records in Disease_information_genotype. Disease Ontology terms are also organised into a separate reference table.
+We retain the disease information records and the original `mouse_genotype_ids` field for traceability. The genotype IDs are separated by a vertical bar (`|`) in the supplied dataset, so they are expanded into individual records in `Disease_information_genotype`. Disease Ontology terms are also organised into a separate reference table.
 
-{r disease-genotype}
+```{r disease-genotype}
 # ---------- 8. Disease records and pipe-delimited genotype associations ----------
 disease$disease_information_id <- seq_len(nrow(disease))
 human_diseases_import <- reference_by_key(
@@ -467,12 +453,13 @@ names(Disease_information_genotype_import)[1] <- "disease_information_id"
 if (nrow(Disease_information_genotype_import) &&
     any(grepl("[,;]", Disease_information_genotype_import$mouse_genotype_id)))
   fail("Unexpected genotype delimiter; expected pipe-separated identifiers")
+```
 
-Step 9. Organise chromosome 2 genes, transcripts, and exons
+## Step 9. Organise chromosome 2 genes, transcripts, and exons
 
-The chromosome 2 source contains gene-level, transcript-level, and exon-level information. We separate these into chrom2_gene, chrom2_transcript, and chrom2. The MGI mapping supplied by the cleaning team is retained so mapped chromosome 2 genes can reference mouse_gene. Genomic coordinates and exon ranks are converted to integer values, and the script checks coordinate validity and transcript–exon uniqueness.
+The chromosome 2 source contains gene-level, transcript-level, and exon-level information. We separate these into `chrom2_gene`, `chrom2_transcript`, and `chrom2`. The MGI mapping supplied by the cleaning team is retained so mapped chromosome 2 genes can reference `mouse_gene`. Genomic coordinates and exon ranks are converted to integer values, and the script checks coordinate validity and transcript–exon uniqueness.
 
-{r chromosome-2}
+```{r chromosome-2}
 # ---------- 9. Chromosome 2 Ensembl genes, transcripts and exons ----------
 chrom2_gene_import <- reference_by_key(
   chrom, "ensembl_gene_id",
@@ -495,12 +482,13 @@ if (any(!is.na(chrom2_import$exon_rank) & chrom2_import$exon_rank < 1))
 primary_key_check(chrom2_import,
                   c("ensembl_transcript_id", "ensembl_exon_id"),
                   "chrom2 transcript/exon pair")
+```
 
-Step 10. Prepare external scientific annotations
+## Step 10. Prepare external scientific annotations
 
-The schema includes parameter_group_external_data for annotations from scientific resources associated with the parameter groups. When external_raw.csv is not supplied, the pipeline writes an empty CSV with the required columns. This reserves the table structure but does not represent completed external annotation collection.
+The schema includes `parameter_group_external_data` for annotations from scientific resources associated with the parameter groups. When `external_raw.csv` is not supplied, the pipeline writes an empty CSV with the required columns. This reserves the table structure but does not represent completed external annotation collection.
 
-{r external-resources}
+```{r external-resources}
 # ---------- 10. Optional external group annotations ----------
 external_cols <- c("external_record_id", "group_id", "resource_name",
                    "external_id", "term_or_label", "notes", "gene_accession_id")
@@ -528,12 +516,13 @@ if (is.null(external)) {
     parameter_group_external_data_import$group_id, "external_raw.group_id",
     positive = TRUE)
 }
+```
 
-Step 11. Validate relational keys and record preservation
+## Step 11. Validate relational keys and record preservation
 
-We assemble the eighteen output tables in their required import order and verify primary-key uniqueness, valid foreign-key references, relevant VARCHAR limits, and preservation of the source records. Validation is performed before exporting the final files. If a required check fails, the script stops so that an inconsistent set of import tables is not reported as successful.
+We assemble the eighteen output tables in their required import order and verify primary-key uniqueness, valid foreign-key references, relevant `VARCHAR` limits, and preservation of the source records. Validation is performed before exporting the final files. If a required check fails, the script stops so that an inconsistent set of import tables is not reported as successful.
 
-{r validate}
+```{r validate}
 # ---------- 11. Strict relational integrity and width checks ----------
 tables <- list(
   mouse_gene = mouse_gene_import,
@@ -679,12 +668,13 @@ stopifnot(nrow(tables$clean_data) == nrow(wide),
           nrow(tables$Disease_information) == nrow(disease),
           nrow(tables$chrom2) == nrow(chrom),
           length(tables) == 18L)
+```
 
-Step 12. Export the import tables and validation reports
+## Step 12. Export the import tables and validation reports
 
-We write the eighteen relational tables as individual CSV files in database_import_revised/. The script also removes a specifically identified obsolete output filename if it remains from an earlier run, avoiding confusion about which table should be imported. The import_summary.csv and validation_notes.txt files record table counts and conversion messages; they are not MySQL data tables.
+We write the eighteen relational tables as individual CSV files in `database_import_revised/`. The script also removes a specifically identified obsolete output filename if it remains from an earlier run, avoiding confusion about which table should be imported. The `import_summary.csv` and `validation_notes.txt` files record table counts and conversion messages; they are not MySQL data tables.
 
-{r export}
+```{r export}
 # ---------- 12. Export in exact foreign-key-safe import order ----------
 dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
 # Remove only the now-obsolete export from the previous 18-table design.
@@ -720,17 +710,18 @@ writeLines(c("Group 14 conversion and validation notes", notes,
   file.path(OUTPUT_DIR, "validation_notes.txt"))
 message("SUCCESS: exported 18 matched _import.csv files to ", OUTPUT_DIR)
 print(summary, row.names = FALSE)
+```
 
-Reviewing the outputs
+## Reviewing the outputs
 
-A successful execution reports SUCCESS: exported 18 matched _import.csv files. The import_summary.csv file provides the row counts for all exported tables. We use it to compare the phenotype and LacZ row counts with the input analyses, check the parameter and procedure catalogue sizes, and review the mouse gene reference built from all four sources.
+A successful execution reports `SUCCESS: exported 18 matched _import.csv files`. The `import_summary.csv` file provides the row counts for all exported tables. We use it to compare the phenotype and LacZ row counts with the input analyses, check the parameter and procedure catalogue sizes, and review the mouse gene reference built from all four sources.
 
 The external annotation table may contain no data rows when no external resource file was provided. This should be reported as missing source material rather than as a completed annotation task.
 
 The export summary describes the CSVs produced by R. It does not establish that the records have been inserted into MySQL; the actual database row counts must be checked separately after importing the files in DBeaver.
 
-Consistency with the MySQL schema
+### Consistency with the MySQL schema
 
-The main analysis table is named clean_data in this pipeline. The corresponding SQL schema must define the same table name, and the lacz_expression foreign key must reference clean_data(result_id). All other output table names, fields, and keys must also match the MySQL definitions.
+The main analysis table is named `clean_data` in this pipeline. The corresponding SQL schema must define the same table name, and the `lacz_expression` foreign key must reference `clean_data(result_id)`. All other output table names, fields, and keys must also match the MySQL definitions.
 
 This R Markdown documents the conversion, validation, and CSV export stages. Creating the MySQL schema and importing the files are separate database implementation steps.
