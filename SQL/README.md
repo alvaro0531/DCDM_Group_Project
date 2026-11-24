@@ -1,20 +1,20 @@
-# IMPC Database: Workflow from Cleaned CSV Files to MySQL
+# IMPC Database: Complete Workflow from Cleaned CSV Files to MySQL
 
-## 1. Overall Approach
+## 1. Overall Workflow
 
-For the database part, I used the cleaned datasets directly. I did not repeat the data cleaning or missing-value imputation that had already been completed.
+The database was built directly from the datasets that had already been cleaned and imputed. Therefore, the previous data cleaning and missing-value imputation steps did not need to be repeated.
 
-My main task was to organise these CSV files into a relational database structure in MySQL and establish the relationships between the tables.
+The main task was to transform the CSV files into a relational database structure suitable for MySQL and establish relationships between the tables using primary and foreign keys.
 
 The overall workflow was:
 
-**6 cleaned CSV files from team members + 2 Parameter Group files prepared by me → 8 input CSV files → Data transformation using R Markdown → 18 import CSV files → Create 18 tables in MySQL → Import the data using DBeaver → Check the data and table relationships.**
+**6 cleaned CSV files + 2 Parameter Group files → 8 input CSV files → Data transformation using R Markdown → 18 import CSV files → Create 18 tables in MySQL → Import data using DBeaver → Check data integrity and table relationships.**
 
-I decided to use 18 tables in the final database. This allowed me to store gene information, experimental parameters, phenotype results, disease information and chromosome data separately, while connecting them through primary and foreign keys.
+The final database contains 18 tables. Gene information, experimental parameters, phenotype results, disease information and chromosome data are stored separately and linked through primary and foreign keys. This structure makes it easier to perform SQL queries and further data analysis.
 
 ## 2. Preparing the Input Data
 
-I used the following six cleaned CSV files provided by my team members:
+The following six cleaned CSV files were used as the main input datasets:
 
 1. `Group14_Cleaned_Imputed_Dataset.csv`
 2. `Parameters.csv`
@@ -23,92 +23,94 @@ I used the following six cleaned CSV files provided by my team members:
 5. `Disease_information.csv`
 6. `chrom2.csv`
 
-The `Group14_Cleaned_Imputed_Dataset.csv` file already contained the results of the previous missing-value imputation, so I used this final version directly.
+The `Group14_Cleaned_Imputed_Dataset.csv` file already included the results of missing-value imputation, so the final cleaned version was used directly.
 
-I had also prepared two Parameter Group files:
+Two additional Parameter Group files were also included to store the six parameter groups and the parameters belonging to each group:
 
 7. `parameter_group.csv`
 8. `parameter_group_member.csv`
 
-These two files store the six parameter groups and the parameters belonging to each group.
-
-In total, I used eight input CSV files and placed them in the `database_import` folder.
+All eight CSV files were placed in the `database_import` folder as the input for the R Markdown transformation process.
 
 ## 3. Splitting the Data Using R Markdown
 
-To make the database transformation process easier to understand, I organised the code in:
+The code for the database transformation is saved in:
 
 `build_impc_import_tables.Rmd`
 
-Instead of importing the eight CSV files directly into MySQL, I first split and reorganised the data based on the relationships needed in the database.
+Instead of importing the eight CSV files directly into MySQL, the data was first split and reorganised according to the relational database structure.
 
-The main steps were:
+The main transformation steps included:
 
-- **Mouse Gene:** I combined mouse gene information from four relevant data sources into the `mouse_gene` table. This allows different tables to be linked using the same MGI ID.
-- **Human Gene:** I created a separate `human_gene` table to store human Entrez IDs and HGNC IDs. Since the two sources provide different identifiers, some records contain only one type of ID.
-- **Parameters and Procedures:** I linked these two tables using `procedure_code`, based on the updated datasets provided by my team members.
-- **Phenotype Results:** I split the main phenotype dataset into `clean_data` and `lacz_expression`. The first table stores the analysis information, while the second stores LacZ expression results for 11 tissues. The two tables are linked through `result_id`.
-- **Bespoke Task:** I kept the original Bespoke records and created separate relationship tables for records containing multiple MP IDs.
-- **Disease Information:** I kept the disease information and split multiple Mouse Genotype IDs into individual relationship records.
-- **Chromosome 2:** I organised the chromosome data into three levels: Gene, Transcript and Exon.
-- **Parameter Groups:** I used `parameter_group` and `parameter_group_member` to store the six groups and their associated parameters.
+- **Mouse Gene:** Mouse gene information from four relevant data sources was combined into the `mouse_gene` table. This allows different tables to be linked using the same MGI ID.
+- **Human Gene:** A separate `human_gene` table was created to store human Entrez IDs and HGNC IDs. Since these identifiers came from different sources, some records contain only one type of ID.
+- **Parameters and Procedures:** The `IMPC_parameter_description` and `IMPC_procedure` tables were linked through `procedure_code`, based on the cleaned datasets.
+- **Phenotype Results:** The main phenotype dataset was split into `clean_data` and `lacz_expression`. The `clean_data` table stores the experimental analysis information, while `lacz_expression` stores LacZ expression results for 11 tissues. These two tables are linked through `result_id`.
+- **Bespoke Task:** The original Bespoke records were retained, while fields containing multiple MP IDs were split into separate relationship records.
+- **Disease Information:** The original disease information was retained, and fields containing multiple Mouse Genotype IDs were split into individual relationship records.
+- **Chromosome 2:** Chromosome 2 data was organised into three levels: Gene, Transcript and Exon.
+- **Parameter Groups:** The `parameter_group` and `parameter_group_member` tables were used to store the six parameter groups and their associated parameters.
 
-I split the data this way mainly to reduce unnecessary duplication and make it easier to join different tables in SQL queries.
+This approach helps reduce unnecessary data duplication and makes it easier to join different tables in SQL queries.
 
 ## 4. Generating the Import CSV Files
 
-After running the code chunks in `build_impc_import_tables.Rmd` in RStudio, the script successfully generated an output folder called:
+The `build_impc_import_tables.Rmd` file was opened in RStudio, and all code chunks were executed in order.
+
+After the code ran successfully, the following output folder was generated:
 
 `database_import_revised`
 
 The folder contains **20 files in total**:
 
 - 18 CSV files ending in `_import.csv`, which are used for importing data into MySQL.
-- `import_summary.csv`, which records the row counts of the generated tables.
-- `validation_notes.txt`, which records information about the data transformation and validation checks.
+- `import_summary.csv`, which records the row counts of the exported tables.
+- `validation_notes.txt`, which contains information about the data transformation and validation checks.
 
 Only the 18 `_import.csv` files need to be imported into MySQL.
 
-I kept these exported files so I could compare the row counts in MySQL with the R outputs after importing the data.
+The other two files are used to check the transformation results and compare the row counts after importing the data into MySQL.
 
 ## 5. Creating the Database in MySQL
 
-I used MySQL 8.0 and managed the database through DBeaver.
+The database was created using MySQL 8.0 and managed through DBeaver.
 
 The database name is:
 
 `data_base_merged`
 
-I first ran the final SQL schema to create all 18 empty tables. The code for this part can be found in `schema.sql`.
+The final SQL schema was executed first to create all 18 empty tables. The corresponding SQL code is saved in `schema.sql`.
 
-The SQL schema defines the data types, primary keys, foreign keys and other relevant constraints for each table.
+The schema defines the data types, primary keys, foreign keys and other relevant constraints for each table.
 
-One difference from my earlier database design is that I removed the `IMPC_procedure_parameter` table because Parameters can now be linked directly to Procedures using `procedure_code`.
+Compared with the earlier design, the final version no longer includes the `IMPC_procedure_parameter` table because Parameters can now be linked directly to Procedures through `procedure_code`.
 
-I also added a `chrom2_gene` table to store the relationship between Ensembl Gene IDs and MGI Gene IDs.
+A new `chrom2_gene` table was also added to store the relationship between Ensembl Gene IDs and MGI Gene IDs.
 
-Therefore, the final database still contains 18 tables.
+As a result, the final database still contains 18 tables.
 
-## 6. Importing the Data Using DBeaver
+## 6. Importing Data Using DBeaver
 
-After creating the tables, I used DBeaver's **Import Data** function to import each CSV file into its corresponding MySQL table.
+After the database tables were created, DBeaver's **Import Data** function was used to import the generated CSV files into their corresponding MySQL tables one by one.
 
-I initially tried importing all the CSV files using SQL commands, but I encountered problems with the data not loading correctly and foreign key constraints. To make it easier to check each step, I decided to import the files individually through DBeaver instead.
+The initial attempt used SQL commands to import the CSV files in batches, but some data was not loaded correctly and foreign key constraint errors occurred. To make each step easier to check, the data was eventually imported individually using DBeaver's CSV import function.
 
-During the import, I used the first row of each CSV as the column headers and selected a comma as the delimiter. I imported the data into the existing MySQL tables rather than creating new tables.
+During the import, the first row of each CSV file was used as the column headers, and the delimiter was set to a comma. The existing MySQL tables were selected as the import targets.
 
-One important setting was **Set empty strings to NULL**, which needed to be enabled. I also left **Ignore duplicate rows** disabled.
+One important setting was **Set empty strings to NULL**, which needed to be enabled.
 
-This meant that empty fields were stored as SQL `NULL` values. However, the original `No data` values in the LacZ fields were kept as text rather than being converted to `NULL`.
+This converts empty fields in the CSV files into SQL `NULL` values, preventing multiple empty strings from being inserted into columns with unique constraints.
 
-## 7. Import Order
+The primary key IDs generated by R Markdown also needed to be preserved during the import to maintain the relationships between different tables.
 
-Since some tables depend on other tables through foreign keys, I imported the parent tables before the child tables.
+## 7. Table Import Order
 
-I followed this order:
+Since some tables depend on other tables through foreign keys, the parent tables needed to be imported before the child tables.
+
+The following import order was used:
 
 | Order | CSV File | MySQL Table |
-|---|---|---|
+|---:|---|---|
 | 1 | `mouse_gene_import.csv` | `mouse_gene` |
 | 2 | `human_gene_import.csv` | `human_gene` |
 | 3 | `IMPC_procedure_import.csv` | `IMPC_procedure` |
@@ -128,13 +130,13 @@ I followed this order:
 | 17 | `chrom2_import.csv` | `chrom2` |
 | 18 | `parameter_group_external_data_import.csv` | `parameter_group_external_data` |
 
-The last table, `parameter_group_external_data`, does not currently have any external resource data, so I left the table empty after creating it.
+The `parameter_group_external_data` table currently has no corresponding external resource data. Therefore, the table has been created but remains empty for now.
 
 ## 8. Checking the Imported Data
 
-After importing the data, I checked the number of records in all 18 tables using SQL queries in DBeaver.
+After importing the CSV files, SQL queries were executed in DBeaver to check the number of records in all 18 tables.
 
-I used the following SQL query to retrieve the row counts of all tables together:
+The following SQL query was used to retrieve the row counts of all tables together:
 
 ```sql
 USE data_base_merged;
@@ -199,21 +201,23 @@ The query returned the following results:
 | `chrom2` | 105,204 |
 | `parameter_group_external_data` | 0 |
 
-All 18 tables were created successfully, and 17 of them contain data.
+The results show that all 18 database tables were created successfully, and 17 of them contain data.
 
-The row counts of the main datasets were consistent with the numbers provided in the team handover. I also kept `import_summary.csv` for further comparison with the tables generated during the R transformation.
+The row counts of the main datasets are consistent with the numbers provided in the team handover.
+
+The `import_summary.csv` file generated by R Markdown can also be used to compare the MySQL row counts with the exported data and check whether any records were missed during the import.
 
 ## 9. Checking the Relationships Between Tables
 
-Apart from checking the row counts, I also tested whether the main tables could be joined correctly.
+Apart from checking the row counts, it was also necessary to confirm that the different tables could be linked correctly.
 
-I first checked the relationships between three core tables:
+The first relationship check focused on three core tables:
 
 - `clean_data`
 - `lacz_expression`
 - `mouse_gene`
 
-I used the following SQL query:
+The following SQL query was used:
 
 ```sql
 USE data_base_merged;
@@ -229,7 +233,7 @@ LEFT JOIN mouse_gene AS m
     ON c.gene_accession_id = m.gene_accession_id;
 ```
 
-The query returned:
+The query returned the following results:
 
 | Check | Result |
 |---|---:|
@@ -237,26 +241,26 @@ The query returned:
 | `matched_lacz` | 28,660 |
 | `matched_genes` | 28,660 |
 
-These results show that all 28,660 analysis records in `clean_data` can be matched to their corresponding LacZ records and mouse gene information.
+The results show that all 28,660 analysis records in `clean_data` can be matched to their corresponding LacZ records and mouse gene information.
 
-This confirms that the relationships between these three main tables are working as expected.
+This confirms that the relationship checks between `clean_data`, `lacz_expression` and `mouse_gene` passed.
 
-The primary and foreign keys for the other tables have also been defined in the database schema, but I still need to check those relationships further using additional queries.
+The primary and foreign keys for the remaining tables have also been defined in the SQL schema. However, further queries are still needed to check whether the corresponding data relationships work as expected.
 
 ## 10. Current Progress and Next Steps
 
-So far, I have completed the main database tasks:
+The main database tasks have now been completed, including:
 
-- Used the final cleaned datasets as input.
-- Used R Markdown to transform eight input CSV files into the data needed for 18 database tables.
-- Created 18 relational tables in MySQL.
-- Imported all available data using DBeaver.
-- Checked the row counts of the tables.
-- Tested the relationships between the main phenotype data, LacZ expression data and mouse gene information.
+- Using the final cleaned CSV files as the database input.
+- Transforming eight input CSV files into the data required for 18 database tables using R Markdown.
+- Creating 18 relational tables in MySQL.
+- Importing all available data using DBeaver.
+- Checking the row counts of all 18 tables.
+- Verifying the relationships between the main phenotype data, LacZ expression data and mouse gene information.
 
-The database is now ready to be used for SQL queries and R Shiny development.
+The database now provides the basic structure needed for SQL queries and R Shiny development.
 
-There are still a few things I need to complete:
+The remaining tasks include:
 
-1. Write and test the SQL queries required by the coursework.
-2. Further check whether the relationships between the remaining tables work as expected.
+1. Writing and testing the SQL queries required by the coursework.
+2. Further checking the relationships between the remaining database tables.
