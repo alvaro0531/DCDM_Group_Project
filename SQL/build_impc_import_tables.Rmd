@@ -1,0 +1,736 @@
+---
+title: "Group 14 IMPC Database Import Pipeline"
+subtitle: "Restructuring eight prepared CSV files into eighteen relational tables"
+author: "Group 14 - Database Workstream"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+    code_folding: hide
+---
+
+Overview
+
+We developed this R Markdown file to document how the database import tables are prepared from the cleaned Group 14 datasets. The pipeline transforms eight input CSV files into eighteen related tables for MySQL. The explanations follow the same order as the R code, so the decisions and relationships are clear alongside each processing step.
+
+The main phenotype results table is named clean_data. The R Markdown focuses on restructuring, checking, and exporting database-ready data. Upstream cleaning and missing-value imputation are covered separately by the data-cleaning workstream.
+
+Project structure
+
+We keep the R Markdown file in the root directory of the IMPC_Project RStudio project. The cleaned source files and the two parameter-group files are stored in database_import/. The script creates database_import_revised/ for its outputs.
+
+IMPC_Project/
+├── IMPC_Project.Rproj
+├── build_impc_import_tables.Rmd
+├── database_import/
+│   ├── Group14_Cleaned_Imputed_Dataset.csv
+│   ├── Parameters.csv
+│   ├── Procedures.csv
+│   ├── bespokeTask.csv
+│   ├── Disease_information.csv
+│   ├── chrom2.csv
+│   ├── parameter_group.csv
+│   └── parameter_group_member.csv
+└── database_import_revised/         # Created during conversion
+
+Running the pipeline
+
+The code chunks are intended to run sequentially in RStudio. We use Run All Chunks to execute the conversion from start to finish and review intermediate objects when needed. Knit can also render an HTML record of the workflow; this requires the rmarkdown package and runs the chunks in a fresh R environment.
+
+The .Rmd file is not executed with source(), which is intended for ordinary .R scripts. A successful run produces eighteen *_import.csv files and two supporting reports: import_summary.csv and validation_notes.txt.
+
+{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = TRUE, warning = TRUE, error = FALSE)
+
+Database tables produced
+
+The final outputs cover mouse and human gene references, parameters and procedures, the six parameter groups, phenotype results, LacZ expression, bespoke and disease annotations, and chromosome 2 records.
+
+Data area
+
+MySQL tables
+
+Gene references
+
+mouse_gene, human_gene
+
+Procedures and parameters
+
+IMPC_procedure, IMPC_parameter_description
+
+Parameter grouping
+
+parameter_group, parameter_group_member
+
+Phenotype results and LacZ
+
+clean_data, lacz_expression
+
+Bespoke data and MP terms
+
+bespokeTask, mp_terms, bespokeTask_mp
+
+Disease associations and genotypes
+
+human_diseases, Disease_information, Disease_information_genotype
+
+Chromosome 2
+
+chrom2_gene, chrom2_transcript, chrom2
+
+External scientific annotations
+
+parameter_group_external_data
+
+The following sections contain executable code chunks. Each stage uses objects created earlier in the workflow.
+
+Configuration and helper functions
+
+We first define the input and output directories and the functions needed for data conversion. These functions handle missing values, numeric and Boolean fields, reference-table consolidation, multi-valued identifiers, and relational integrity checks.
+
+The read_source() function reads identifiers as character data and recognises empty CSV cells and the literal NA as missing values. The validation functions stop when conflicting records or invalid keys are encountered rather than silently excluding the affected rows.
+
+{r configuration-and-helpers}
+# Group 14 IMPC: updated 8-input -> 18-table MySQL CSV converter.
+# Input: database_import/*.csv (the six accepted cleaned CSVs plus two group CSVs).
+# Output: database_import_revised/*_import.csv and validation reports.
+# Base R only. This script does not clean raw IMPC data or import into MySQL.
+# Designed to match IMPC_final_18_tables_updated.sql exactly.
+
+INPUT_DIR <- "database_import"
+OUTPUT_DIR <- "database_import_revised"
+
+fail <- function(...) stop(paste0(...), call. = FALSE)
+notes <- character()
+note <- function(...) {
+  msg <- paste0(...)
+  message(msg)
+  notes <<- c(notes, msg)
+}
+
+read_source <- function(file_name, optional = FALSE) {
+  path <- file.path(INPUT_DIR, file_name)
+  if (!file.exists(path)) {
+    if (optional) return(NULL)
+    fail("Required input file not found: ", path)
+  }
+  # Keep all ID fields as character; treat CSV blanks and literal NA as missing.
+  x <- read.csv(path, header = TRUE, stringsAsFactors = FALSE,
+                check.names = FALSE, colClasses = "character",
+                na.strings = c("", "NA"), fileEncoding = "UTF-8")
+  if (anyDuplicated(names(x))) fail(file_name, ": duplicated column headers")
+  note("Read ", file_name, ": ", nrow(x), " rows, ", ncol(x), " columns")
+  x
+}
+
+require_cols <- function(df, fields, label) {
+  missing <- setdiff(fields, names(df))
+  if (length(missing)) fail(label, " is missing columns: ",
+                            paste(missing, collapse = ", "))
+  invisible(TRUE)
+}
+
+clean_string <- function(v) {
+  v <- trimws(as.character(v))
+  v[!is.na(v) & v == ""] <- NA_character_
+  v
+}
+
+nullable_integer <- function(v, label, positive = FALSE) {
+  raw <- clean_string(v)
+  x <- suppressWarnings(as.numeric(raw))
+  bad <- !is.na(raw) & (is.na(x) | !is.finite(x) | x != floor(x))
+  if (positive) bad <- bad | (!is.na(x) & x < 1)
+  if (any(bad)) fail(label, " has non-integer/invalid values: ",
+                     paste(head(unique(raw[bad]), 6), collapse = ", "))
+  x
+}
+
+boolean_01 <- function(v, label) {
+  raw <- tolower(clean_string(v))
+  yes <- raw %in% c("true", "t", "1", "yes", "y")
+  no <- raw %in% c("false", "f", "0", "no", "n")
+  invalid <- !is.na(raw) & !(yes | no)
+  if (any(invalid)) fail(label, " has invalid boolean values: ",
+                         paste(head(unique(raw[invalid]), 6), collapse = ", "))
+  out <- rep(NA_integer_, length(raw))
+  out[yes] <- 1L
+  out[no] <- 0L
+  out
+}
+
+numeric_pvalues <- function(v) {
+  raw <- clean_string(v)
+  x <- suppressWarnings(as.numeric(raw))
+  bad <- !is.na(raw) & (is.na(x) | !is.finite(x) | x < 0 | x > 1)
+  if (any(bad)) fail("Invalid p_value values: ",
+                     paste(head(unique(raw[bad]), 6), collapse = ", "))
+  x
+}
+
+primary_key_check <- function(df, cols, label) {
+  require_cols(df, cols, label)
+  if (nrow(df) == 0L) return(invisible(TRUE))
+  parts <- lapply(df[cols], clean_string)
+  if (any(vapply(parts, function(x) anyNA(x), logical(1))))
+    fail(label, " has missing primary key values in ", paste(cols, collapse = ", "))
+  key <- do.call(paste, c(parts, sep = "\r"))
+  if (anyDuplicated(key)) fail(label, " has duplicated primary keys: ",
+                               paste(cols, collapse = ", "))
+  invisible(TRUE)
+}
+
+foreign_key_check <- function(child, child_col, parent, parent_col, label) {
+  values <- unique(clean_string(child[[child_col]]))
+  values <- values[!is.na(values)]
+  valid <- unique(clean_string(parent[[parent_col]]))
+  unknown <- setdiff(values, valid)
+  if (length(unknown)) fail(label, " has ", length(unknown),
+                            " unknown values in ", child_col, ": ",
+                            paste(head(unknown, 8), collapse = ", "))
+  invisible(TRUE)
+}
+
+# Aggregate by a *single* reference key without quadratic repeated scans.
+# Refuse conflicting nonblank descriptions rather than choosing arbitrary values.
+reference_by_key <- function(df, key, details, label) {
+  require_cols(df, c(key, details), label)
+  keys <- clean_string(df[[key]])
+  keep <- !is.na(keys)
+  groups <- split(which(keep), keys[keep], drop = TRUE)
+  if (!length(groups)) {
+    empty_cols <- setNames(rep(list(character()), length(c(key, details))),
+                           c(key, details))
+    return(as.data.frame(empty_cols, stringsAsFactors = FALSE))
+  }
+  out <- data.frame(id = names(groups), stringsAsFactors = FALSE)
+  names(out)[1] <- key
+  for (field in details) {
+    values <- clean_string(df[[field]])
+    out[[field]] <- vapply(seq_along(groups), function(i) {
+      u <- unique(values[groups[[i]]])
+      u <- u[!is.na(u)]
+      if (length(u) > 1L) fail(label, ": conflicting ", field,
+                               " for ", key, " = ", names(groups)[i], ": ",
+                               paste(head(u, 5), collapse = " / "))
+      if (!length(u)) NA_character_ else u[1]
+    }, character(1))
+  }
+  rownames(out) <- NULL
+  out
+}
+
+# Turn a comma- or pipe-separated field into unique (row ID, term) pairs.
+expand_relationship <- function(row_id, value, colname, delimiter) {
+  text <- ifelse(is.na(value), "", as.character(value))
+  items <- strsplit(text, split = delimiter, fixed = TRUE)
+  out <- data.frame(row_id = rep(row_id, lengths(items)),
+                    item = trimws(unlist(items, use.names = FALSE)),
+                    stringsAsFactors = FALSE)
+  out <- out[!is.na(out$item) & nzchar(out$item), , drop = FALSE]
+  out <- unique(out)
+  names(out) <- c("row_id", colname)
+  rownames(out) <- NULL
+  out
+}
+
+Step 1. Read the source datasets
+
+We import six cleaned datasets and two parameter-group tables. The script verifies the expected column names before making any changes to the data structure. An optional external_raw.csv can also be read when group-specific external annotations are available. This stage does not repeat the original data-cleaning work.
+
+{r read-inputs}
+# ---------- 1. Read the eight accepted input files ----------
+wide <- read_source("Group14_Cleaned_Imputed_Dataset.csv")
+params <- read_source("Parameters.csv")
+procedures <- read_source("Procedures.csv")
+bespoke <- read_source("bespokeTask.csv")
+disease <- read_source("Disease_information.csv")
+chrom <- read_source("chrom2.csv")
+groups <- read_source("parameter_group.csv")
+members <- read_source("parameter_group_member.csv")
+external <- read_source("external_raw.csv", optional = TRUE)
+
+lacz_cols <- paste0("lacz_", c("blood", "brain", "colon", "eye", "heart",
+                             "kidney", "liver", "lung", "skeletal_muscle",
+                             "skin", "vascular_system"))
+require_cols(wide, c("analysis_id", "gene_accession_id", "gene_symbol",
+  "allele_symbol", "strain_name", "parameter_id", "parameter_name",
+  "p_value", "mouse_life_stage", "source_file", lacz_cols),
+  "Group14_Cleaned_Imputed_Dataset.csv")
+require_cols(params, c("parameter_id", "parameter_name",
+  "parameter_description", "procedure_code", "impc_parameter_orig_id"),
+  "Parameters.csv")
+require_cols(procedures, c("procedure_code", "procedure_name",
+  "procedure_description", "is_mandatory"), "Procedures.csv")
+require_cols(bespoke, c("human_gene_symbol", "human_entrez_gene_id",
+  "gene_symbol", "gene_accession_id", "high_level_mp_ids", "in_impc_dataset"),
+  "bespokeTask.csv")
+require_cols(disease, c("human_gene_symbol", "human_gene_name", "hgnc_id",
+  "do_term_name", "do_term_id", "mouse_genotype_ids", "gene_symbol",
+  "gene_accession_id"), "Disease_information.csv")
+require_cols(chrom, c("ensembl_gene_id", "ensembl_transcript_id", "gene_name",
+  "ensembl_exon_id", "exon_start", "exon_end", "exon_rank",
+  "gene_accession_id", "gene_symbol"), "chrom2.csv")
+require_cols(groups, c("group_id", "group_name"), "parameter_group.csv")
+require_cols(members, c("group_id", "parameter_id"),
+             "parameter_group_member.csv")
+
+Step 2. Build the mouse gene reference
+
+The mouse gene reference is assembled from four sources: the phenotype analyses, bespoke dataset, disease data, and chromosome 2 file. We combine their MGI accession IDs and keep one reference record for each distinct gene_accession_id. Conflicting non-missing gene symbols for the same accession are treated as errors rather than being merged arbitrarily.
+
+{r mouse-genes}
+# ---------- 2. Four-source mouse gene reference ----------
+gene_source <- rbind(
+  wide[c("gene_accession_id", "gene_symbol")],
+  bespoke[c("gene_accession_id", "gene_symbol")],
+  disease[c("gene_accession_id", "gene_symbol")],
+  chrom[c("gene_accession_id", "gene_symbol")]
+)
+mouse_gene_import <- reference_by_key(gene_source, "gene_accession_id",
+                                      "gene_symbol", "mouse_gene")
+if (anyNA(mouse_gene_import$gene_symbol))
+  note("WARNING: some mouse genes have no known symbol (preserved as NULL)")
+
+Step 3. Prepare the procedure and parameter tables
+
+The prepared Procedures.csv uses procedure_code to identify individual procedures. The parameter catalogue contains the same field, which allows each parameter to reference its procedure directly. We retain impc_parameter_orig_id as source metadata rather than using it as the relationship key. Boolean fields are converted into 0 and 1 for MySQL import.
+
+{r parameters-procedures}
+# ---------- 3. Procedures and the parameter catalogue ----------
+IMPC_procedure_import <- procedures[c("procedure_code", "procedure_name",
+                                      "procedure_description", "is_mandatory")]
+IMPC_procedure_import$procedure_code <- clean_string(IMPC_procedure_import$procedure_code)
+IMPC_procedure_import$is_mandatory <- boolean_01(
+  IMPC_procedure_import$is_mandatory, "Procedures.is_mandatory")
+
+IMPC_parameter_description_import <- params[c("parameter_id", "parameter_name",
+  "parameter_description", "procedure_code", "impc_parameter_orig_id")]
+IMPC_parameter_description_import$parameter_id <- clean_string(
+  IMPC_parameter_description_import$parameter_id)
+IMPC_parameter_description_import$parameter_name <- clean_string(
+  IMPC_parameter_description_import$parameter_name)
+IMPC_parameter_description_import$procedure_code <- clean_string(
+  IMPC_parameter_description_import$procedure_code)
+IMPC_parameter_description_import$impc_parameter_orig_id <- nullable_integer(
+  IMPC_parameter_description_import$impc_parameter_orig_id,
+  "Parameters.impc_parameter_orig_id", positive = TRUE)
+if (anyNA(IMPC_parameter_description_import$parameter_name))
+  fail("Parameters.csv has missing parameter_name values")
+
+# The source has an identified procedure_code for each applicable parameter.
+# Do not reconstruct mappings using impc_parameter_orig_id (version identifier).
+
+Step 4. Prepare the six parameter groups
+
+We use the group identifiers and memberships from parameter_group.csv and parameter_group_member.csv. These tables preserve the six selected phenotype categories and the parameter assignments produced during the grouping work. The subsequent validation confirms that each assigned parameter is present in the updated parameter catalogue.
+
+{r parameter-groups}
+# ---------- 4. Parameter groups, preserving supplied group IDs ----------
+parameter_group_import <- groups[c("group_id", "group_name")]
+parameter_group_import$group_id <- nullable_integer(
+  parameter_group_import$group_id, "parameter_group.group_id", positive = TRUE)
+parameter_group_import$group_name <- clean_string(parameter_group_import$group_name)
+if (anyNA(parameter_group_import$group_name) ||
+    anyDuplicated(parameter_group_import$group_name))
+  fail("parameter_group has blank or duplicated group names")
+
+parameter_group_member_import <- unique(members[c("group_id", "parameter_id")])
+parameter_group_member_import$group_id <- nullable_integer(
+  parameter_group_member_import$group_id, "parameter_group_member.group_id",
+  positive = TRUE)
+parameter_group_member_import$parameter_id <- clean_string(
+  parameter_group_member_import$parameter_id)
+
+Step 5. Separate phenotype analyses and LacZ expression
+
+We preserve one record for each input phenotype analysis and assign a consistent result_id. The general analysis fields are stored in clean_data, while the eleven tissue-specific LacZ fields are stored in lacz_expression using the same result_id. The source column p_value is mapped to the database column pvalue. Before omitting the redundant parameter-name field from the results table, the script checks that source names agree with the parameter reference table.
+
+{r phenotype-lacz}
+# ---------- 5. Phenotype result and LacZ tables ----------
+wide$result_id <- seq_len(nrow(wide))
+clean_data_import <- wide[c("result_id", "analysis_id", "source_file",
+  "gene_accession_id", "gene_symbol", "allele_symbol", "strain_name",
+  "parameter_id", "p_value", "mouse_life_stage")]
+names(clean_data_import)[names(clean_data_import) == "p_value"] <- "pvalue"
+clean_data_import$pvalue <- numeric_pvalues(clean_data_import$pvalue)
+clean_data_import$analysis_id <- clean_string(clean_data_import$analysis_id)
+# parameter_name remains available through the referenced parameter table.
+# Verify the supplied parameter names match the catalogue before omitting them.
+param_idx <- match(clean_string(wide$parameter_id),
+                   clean_string(IMPC_parameter_description_import$parameter_id))
+with_id <- !is.na(clean_string(wide$parameter_id))
+if (any(with_id & is.na(param_idx)))
+  fail("Some phenotype parameter IDs are not in Parameters.csv")
+name_diff <- with_id & !is.na(wide$parameter_name) &
+  clean_string(wide$parameter_name) !=
+  clean_string(IMPC_parameter_description_import$parameter_name[param_idx])
+name_diff[is.na(name_diff)] <- FALSE
+if (any(name_diff))
+  fail("Phenotype parameter_name disagrees with Parameters.csv (first analysis_id: ",
+       wide$analysis_id[which(name_diff)[1]], ")")
+lacz_expression_import <- wide[c("result_id", lacz_cols)]
+
+Step 6. Build the human gene reference
+
+Human Entrez and HGNC identifiers originate from different source files. We construct their reference records separately rather than assuming that an Entrez ID and an HGNC ID are an established one-to-one match. This preserves the available identifiers without creating unsupported links across sources.
+
+{r human-genes}
+# ---------- 6. Human references (never silently merge Entrez and HGNC) ----------
+entrez_input <- data.frame(
+  human_entrez_gene_id = clean_string(bespoke$human_entrez_gene_id),
+  human_gene_symbol = clean_string(bespoke$human_gene_symbol),
+  human_gene_name = NA_character_, stringsAsFactors = FALSE)
+entrez_ref <- reference_by_key(entrez_input, "human_entrez_gene_id",
+                               c("human_gene_symbol", "human_gene_name"),
+                               "bespoke Entrez genes")
+entrez_ref$hgnc_id <- NA_character_
+
+hgnc_input <- data.frame(
+  hgnc_id = clean_string(disease$hgnc_id),
+  human_gene_symbol = clean_string(disease$human_gene_symbol),
+  human_gene_name = clean_string(disease$human_gene_name),
+  stringsAsFactors = FALSE)
+hgnc_ref <- reference_by_key(hgnc_input, "hgnc_id",
+                             c("human_gene_symbol", "human_gene_name"),
+                             "disease HGNC genes")
+hgnc_ref$human_entrez_gene_id <- NA_character_
+
+human_gene_import <- rbind(
+  entrez_ref[c("human_gene_symbol", "human_gene_name", "human_entrez_gene_id", "hgnc_id")],
+  hgnc_ref[c("human_gene_symbol", "human_gene_name", "human_entrez_gene_id", "hgnc_id")]
+)
+human_gene_import$human_gene_id <- seq_len(nrow(human_gene_import))
+human_gene_import <- human_gene_import[c("human_gene_id", "human_gene_symbol",
+  "human_gene_name", "human_entrez_gene_id", "hgnc_id")]
+
+Step 7. Separate bespoke records and MP annotations
+
+The bespoke source records are retained, including the in_impc_dataset field identifying overlap with the analysed IMPC genes. Comma-separated values in high_level_mp_ids are expanded into individual Mammalian Phenotype identifiers. These are stored in mp_terms and connected to their source records through bespokeTask_mp. Where available, the corresponding human gene reference is also linked.
+
+{r bespoke-mp}
+# ---------- 7. Bespoke records, MP terms and their relationships ----------
+bespoke$bespoke_task_id <- seq_len(nrow(bespoke))
+bespokeTask_import <- bespoke[c("bespoke_task_id", "human_gene_symbol",
+  "human_entrez_gene_id", "gene_symbol", "gene_accession_id",
+  "high_level_mp_ids", "in_impc_dataset")]
+bespokeTask_import$in_impc_dataset <- boolean_01(
+  bespokeTask_import$in_impc_dataset, "bespokeTask.in_impc_dataset")
+# Confirm that the supplied overlap flag has its documented meaning.
+observed <- !is.na(bespokeTask_import$gene_accession_id) &
+  bespokeTask_import$gene_accession_id %in% wide$gene_accession_id
+flag_check <- !is.na(bespokeTask_import$in_impc_dataset) &
+  bespokeTask_import$in_impc_dataset != as.integer(observed)
+if (any(flag_check)) fail("bespokeTask.in_impc_dataset conflicts with the phenotype gene set")
+bespokeTask_import$human_gene_id <- human_gene_import$human_gene_id[
+  match(clean_string(bespokeTask_import$human_entrez_gene_id),
+        human_gene_import$human_entrez_gene_id)]
+bespokeTask_import$human_gene_id[is.na(clean_string(
+  bespokeTask_import$human_entrez_gene_id))] <- NA_real_
+
+bespokeTask_mp_import <- expand_relationship(
+  bespokeTask_import$bespoke_task_id, bespokeTask_import$high_level_mp_ids,
+  "mp_term_id", ",")
+names(bespokeTask_mp_import)[1] <- "bespoke_task_id"
+if (nrow(bespokeTask_mp_import) &&
+    any(!grepl("^MP:[0-9]+$", bespokeTask_mp_import$mp_term_id)))
+  fail("Malformed MP identifier in bespokeTask.high_level_mp_ids")
+mp_terms_import <- data.frame(
+  mp_term_id = sort(unique(bespokeTask_mp_import$mp_term_id)),
+  mp_term_name = NA_character_, stringsAsFactors = FALSE)
+
+Step 8. Separate disease records and genotype identifiers
+
+We retain the disease information records and the original mouse_genotype_ids field for traceability. The genotype IDs are separated by a vertical bar (|) in the supplied dataset, so they are expanded into individual records in Disease_information_genotype. Disease Ontology terms are also organised into a separate reference table.
+
+{r disease-genotype}
+# ---------- 8. Disease records and pipe-delimited genotype associations ----------
+disease$disease_information_id <- seq_len(nrow(disease))
+human_diseases_import <- reference_by_key(
+  disease, "do_term_id", "do_term_name", "human_diseases")
+Disease_information_import <- disease[c("disease_information_id", "human_gene_symbol",
+  "human_gene_name", "hgnc_id", "do_term_name", "do_term_id",
+  "mouse_genotype_ids", "gene_symbol", "gene_accession_id")]
+Disease_information_import$human_gene_id <- human_gene_import$human_gene_id[
+  match(clean_string(Disease_information_import$hgnc_id), human_gene_import$hgnc_id)]
+Disease_information_import$human_gene_id[is.na(clean_string(
+  Disease_information_import$hgnc_id))] <- NA_real_
+
+Disease_information_genotype_import <- expand_relationship(
+  Disease_information_import$disease_information_id,
+  Disease_information_import$mouse_genotype_ids,
+  "mouse_genotype_id", "|")
+names(Disease_information_genotype_import)[1] <- "disease_information_id"
+# Avoid silently interpreting an unexpected comma/semicolon-separated list.
+if (nrow(Disease_information_genotype_import) &&
+    any(grepl("[,;]", Disease_information_genotype_import$mouse_genotype_id)))
+  fail("Unexpected genotype delimiter; expected pipe-separated identifiers")
+
+Step 9. Organise chromosome 2 genes, transcripts, and exons
+
+The chromosome 2 source contains gene-level, transcript-level, and exon-level information. We separate these into chrom2_gene, chrom2_transcript, and chrom2. The MGI mapping supplied by the cleaning team is retained so mapped chromosome 2 genes can reference mouse_gene. Genomic coordinates and exon ranks are converted to integer values, and the script checks coordinate validity and transcript–exon uniqueness.
+
+{r chromosome-2}
+# ---------- 9. Chromosome 2 Ensembl genes, transcripts and exons ----------
+chrom2_gene_import <- reference_by_key(
+  chrom, "ensembl_gene_id",
+  c("gene_name", "gene_accession_id", "gene_symbol"), "chrom2_gene")
+chrom2_transcript_import <- reference_by_key(
+  chrom, "ensembl_transcript_id", "ensembl_gene_id", "chrom2_transcript")
+chrom$chrom2_row_id <- seq_len(nrow(chrom))
+chrom2_import <- chrom[c("chrom2_row_id", "ensembl_transcript_id",
+  "ensembl_exon_id", "exon_start", "exon_end", "exon_rank")]
+for (field in c("exon_start", "exon_end", "exon_rank")) {
+  chrom2_import[[field]] <- nullable_integer(chrom2_import[[field]],
+                                              paste0("chrom2.", field))
+}
+invalid_coord <- !is.na(chrom2_import$exon_start) &
+  !is.na(chrom2_import$exon_end) &
+  chrom2_import$exon_start > chrom2_import$exon_end
+if (any(invalid_coord)) fail("chrom2 contains exon_start > exon_end")
+if (any(!is.na(chrom2_import$exon_rank) & chrom2_import$exon_rank < 1))
+  fail("chrom2 contains exon_rank < 1")
+primary_key_check(chrom2_import,
+                  c("ensembl_transcript_id", "ensembl_exon_id"),
+                  "chrom2 transcript/exon pair")
+
+Step 10. Prepare external scientific annotations
+
+The schema includes parameter_group_external_data for annotations from scientific resources associated with the parameter groups. When external_raw.csv is not supplied, the pipeline writes an empty CSV with the required columns. This reserves the table structure but does not represent completed external annotation collection.
+
+{r external-resources}
+# ---------- 10. Optional external group annotations ----------
+external_cols <- c("external_record_id", "group_id", "resource_name",
+                   "external_id", "term_or_label", "notes", "gene_accession_id")
+if (is.null(external)) {
+  parameter_group_external_data_import <- data.frame(
+    external_record_id = numeric(), group_id = numeric(),
+    resource_name = character(), external_id = character(),
+    term_or_label = character(), notes = character(),
+    gene_accession_id = character(), stringsAsFactors = FALSE)
+  note("Optional external_raw.csv not supplied: external resource table is empty")
+} else {
+  require_cols(external, c("resource_name", "external_id"), "external_raw.csv")
+  if (!("group_id" %in% names(external))) {
+    require_cols(external, "group_name", "external_raw.csv")
+    ix <- match(clean_string(external$group_name),
+                clean_string(parameter_group_import$group_name))
+    if (anyNA(ix)) fail("external_raw.csv has an unknown group_name")
+    external$group_id <- parameter_group_import$group_id[ix]
+  }
+  for (f in c("term_or_label", "notes", "gene_accession_id"))
+    if (!(f %in% names(external))) external[[f]] <- rep(NA_character_, nrow(external))
+  external$external_record_id <- seq_len(nrow(external))
+  parameter_group_external_data_import <- external[external_cols]
+  parameter_group_external_data_import$group_id <- nullable_integer(
+    parameter_group_external_data_import$group_id, "external_raw.group_id",
+    positive = TRUE)
+}
+
+Step 11. Validate relational keys and record preservation
+
+We assemble the eighteen output tables in their required import order and verify primary-key uniqueness, valid foreign-key references, relevant VARCHAR limits, and preservation of the source records. Validation is performed before exporting the final files. If a required check fails, the script stops so that an inconsistent set of import tables is not reported as successful.
+
+{r validate}
+# ---------- 11. Strict relational integrity and width checks ----------
+tables <- list(
+  mouse_gene = mouse_gene_import,
+  human_gene = human_gene_import,
+  IMPC_procedure = IMPC_procedure_import,
+  IMPC_parameter_description = IMPC_parameter_description_import,
+  parameter_group = parameter_group_import,
+  parameter_group_member = parameter_group_member_import,
+  clean_data = clean_data_import,
+  lacz_expression = lacz_expression_import,
+  bespokeTask = bespokeTask_import,
+  mp_terms = mp_terms_import,
+  bespokeTask_mp = bespokeTask_mp_import,
+  human_diseases = human_diseases_import,
+  Disease_information = Disease_information_import,
+  Disease_information_genotype = Disease_information_genotype_import,
+  chrom2_gene = chrom2_gene_import,
+  chrom2_transcript = chrom2_transcript_import,
+  chrom2 = chrom2_import,
+  parameter_group_external_data = parameter_group_external_data_import
+)
+
+keys <- list(
+  mouse_gene = "gene_accession_id",
+  human_gene = "human_gene_id",
+  IMPC_procedure = "procedure_code",
+  IMPC_parameter_description = "parameter_id",
+  parameter_group = "group_id",
+  parameter_group_member = c("group_id", "parameter_id"),
+  clean_data = "result_id",
+  lacz_expression = "result_id",
+  bespokeTask = "bespoke_task_id",
+  mp_terms = "mp_term_id",
+  bespokeTask_mp = c("bespoke_task_id", "mp_term_id"),
+  human_diseases = "do_term_id",
+  Disease_information = "disease_information_id",
+  Disease_information_genotype = c("disease_information_id", "mouse_genotype_id"),
+  chrom2_gene = "ensembl_gene_id",
+  chrom2_transcript = "ensembl_transcript_id",
+  chrom2 = "chrom2_row_id",
+  parameter_group_external_data = "external_record_id"
+)
+
+# Trim reference ID columns in both parent and child output CSVs.
+identifier_cols <- c("gene_accession_id", "gene_symbol", "human_entrez_gene_id",
+  "hgnc_id", "parameter_id", "procedure_code", "group_name", "analysis_id",
+  "do_term_id", "mp_term_id", "mouse_genotype_id", "ensembl_gene_id",
+  "ensembl_transcript_id", "ensembl_exon_id", "resource_name", "external_id")
+for (nm in names(tables)) {
+  tab <- tables[[nm]]
+  for (field in intersect(identifier_cols, names(tab)))
+    tab[[field]] <- clean_string(tab[[field]])
+  tables[[nm]] <- tab
+}
+
+for (nm in names(tables)) primary_key_check(tables[[nm]], keys[[nm]], nm)
+
+fk <- foreign_key_check
+fk(tables$IMPC_parameter_description, "procedure_code", tables$IMPC_procedure,
+   "procedure_code", "IMPC_parameter_description")
+fk(tables$parameter_group_member, "group_id", tables$parameter_group,
+   "group_id", "parameter_group_member")
+fk(tables$parameter_group_member, "parameter_id", tables$IMPC_parameter_description,
+   "parameter_id", "parameter_group_member")
+fk(tables$clean_data, "gene_accession_id", tables$mouse_gene,
+   "gene_accession_id", "clean_data")
+fk(tables$clean_data, "parameter_id", tables$IMPC_parameter_description,
+   "parameter_id", "clean_data")
+fk(tables$lacz_expression, "result_id", tables$clean_data,
+   "result_id", "lacz_expression")
+fk(tables$bespokeTask, "gene_accession_id", tables$mouse_gene,
+   "gene_accession_id", "bespokeTask")
+fk(tables$bespokeTask, "human_gene_id", tables$human_gene,
+   "human_gene_id", "bespokeTask")
+fk(tables$bespokeTask_mp, "bespoke_task_id", tables$bespokeTask,
+   "bespoke_task_id", "bespokeTask_mp")
+fk(tables$bespokeTask_mp, "mp_term_id", tables$mp_terms,
+   "mp_term_id", "bespokeTask_mp")
+fk(tables$Disease_information, "gene_accession_id", tables$mouse_gene,
+   "gene_accession_id", "Disease_information")
+fk(tables$Disease_information, "human_gene_id", tables$human_gene,
+   "human_gene_id", "Disease_information")
+fk(tables$Disease_information, "do_term_id", tables$human_diseases,
+   "do_term_id", "Disease_information")
+fk(tables$Disease_information_genotype, "disease_information_id",
+   tables$Disease_information, "disease_information_id",
+   "Disease_information_genotype")
+fk(tables$chrom2_gene, "gene_accession_id", tables$mouse_gene,
+   "gene_accession_id", "chrom2_gene")
+fk(tables$chrom2_transcript, "ensembl_gene_id", tables$chrom2_gene,
+   "ensembl_gene_id", "chrom2_transcript")
+fk(tables$chrom2, "ensembl_transcript_id", tables$chrom2_transcript,
+   "ensembl_transcript_id", "chrom2")
+fk(tables$parameter_group_external_data, "group_id", tables$parameter_group,
+   "group_id", "parameter_group_external_data")
+fk(tables$parameter_group_external_data, "gene_accession_id", tables$mouse_gene,
+   "gene_accession_id", "parameter_group_external_data")
+
+# Verify SQL-compatible VARCHAR widths before writing any files.
+# Text columns are not constrained by this simple VARCHAR preflight.
+limits <- list(
+  mouse_gene = c(gene_accession_id=32, gene_symbol=128),
+  human_gene = c(human_gene_symbol=128, human_gene_name=255,
+                 human_entrez_gene_id=64, hgnc_id=64),
+  IMPC_procedure = c(procedure_code=16, procedure_name=255),
+  IMPC_parameter_description = c(parameter_id=64, parameter_name=255,
+                                  procedure_code=16),
+  parameter_group = c(group_name=128),
+  parameter_group_member = c(parameter_id=64),
+  clean_data = c(analysis_id=128, source_file=512,
+                      gene_accession_id=32, gene_symbol=128, allele_symbol=255,
+                      strain_name=255, parameter_id=64, mouse_life_stage=64),
+  lacz_expression = setNames(rep(64, length(lacz_cols)), lacz_cols),
+  bespokeTask = c(human_gene_symbol=128, human_entrez_gene_id=64,
+                  gene_symbol=128, gene_accession_id=32),
+  mp_terms = c(mp_term_id=32, mp_term_name=255),
+  bespokeTask_mp = c(mp_term_id=32),
+  human_diseases = c(do_term_id=32, do_term_name=255),
+  Disease_information = c(human_gene_symbol=128, human_gene_name=255,
+                          hgnc_id=64, do_term_name=255, do_term_id=32,
+                          gene_symbol=128, gene_accession_id=32),
+  Disease_information_genotype = c(mouse_genotype_id=255),
+  chrom2_gene = c(ensembl_gene_id=32, gene_name=255,
+                  gene_accession_id=32, gene_symbol=128),
+  chrom2_transcript = c(ensembl_transcript_id=32, ensembl_gene_id=32),
+  chrom2 = c(ensembl_transcript_id=32, ensembl_exon_id=32),
+  parameter_group_external_data = c(resource_name=128, external_id=64,
+                                    term_or_label=255, gene_accession_id=32)
+)
+for (nm in names(limits)) {
+  for (field in names(limits[[nm]])) {
+    vals <- as.character(tables[[nm]][[field]])
+    too_long <- !is.na(vals) & nchar(vals, type = "chars") > limits[[nm]][[field]]
+    if (any(too_long)) fail(nm, ".", field, " exceeds VARCHAR(",
+                            limits[[nm]][[field]], ")")
+  }
+}
+
+# Do not lose source analysis, orthology, disease or exon rows.
+stopifnot(nrow(tables$clean_data) == nrow(wide),
+          nrow(tables$lacz_expression) == nrow(wide),
+          nrow(tables$bespokeTask) == nrow(bespoke),
+          nrow(tables$Disease_information) == nrow(disease),
+          nrow(tables$chrom2) == nrow(chrom),
+          length(tables) == 18L)
+
+Step 12. Export the import tables and validation reports
+
+We write the eighteen relational tables as individual CSV files in database_import_revised/. The script also removes a specifically identified obsolete output filename if it remains from an earlier run, avoiding confusion about which table should be imported. The import_summary.csv and validation_notes.txt files record table counts and conversion messages; they are not MySQL data tables.
+
+{r export}
+# ---------- 12. Export in exact foreign-key-safe import order ----------
+dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
+# Remove only the now-obsolete export from the previous 18-table design.
+# All other unexpected imports are reported rather than silently overwritten.
+obsolete_files <- c("IMPC_procedure_parameter_import.csv", "clean_wide_data_import.csv")
+for (old_file in obsolete_files) {
+  obsolete <- file.path(OUTPUT_DIR, old_file)
+  if (file.exists(obsolete)) {
+    if (!file.remove(obsolete)) fail("Could not remove obsolete export: ", obsolete)
+    note("Removed obsolete export: ", old_file)
+  }
+}
+expected_exports <- paste0(names(tables), "_import.csv")
+old_exports <- list.files(OUTPUT_DIR, pattern = "_import\\.csv$", full.names = FALSE)
+unexpected <- setdiff(old_exports, expected_exports)
+if (length(unexpected))
+  fail("Output folder contains unexpected _import.csv files: ",
+       paste(unexpected, collapse = ", "),
+       ". Move these files before running the updated export.")
+for (nm in names(tables)) {
+  write.csv(tables[[nm]], file.path(OUTPUT_DIR, paste0(nm, "_import.csv")),
+            row.names = FALSE, na = "", fileEncoding = "UTF-8")
+}
+summary <- data.frame(import_order = seq_along(tables),
+                      table_name = names(tables),
+                      rows = vapply(tables, nrow, integer(1)),
+                      csv_file = paste0(names(tables), "_import.csv"),
+                      stringsAsFactors = FALSE)
+write.csv(summary, file.path(OUTPUT_DIR, "import_summary.csv"), row.names = FALSE)
+writeLines(c("Group 14 conversion and validation notes", notes,
+  "All 18 primary-key checks, foreign-key checks and VARCHAR checks passed.",
+  "Numbers in import_summary.csv are exported CSV counts, not MySQL import counts."),
+  file.path(OUTPUT_DIR, "validation_notes.txt"))
+message("SUCCESS: exported 18 matched _import.csv files to ", OUTPUT_DIR)
+print(summary, row.names = FALSE)
+
+Reviewing the outputs
+
+A successful execution reports SUCCESS: exported 18 matched _import.csv files. The import_summary.csv file provides the row counts for all exported tables. We use it to compare the phenotype and LacZ row counts with the input analyses, check the parameter and procedure catalogue sizes, and review the mouse gene reference built from all four sources.
+
+The external annotation table may contain no data rows when no external resource file was provided. This should be reported as missing source material rather than as a completed annotation task.
+
+The export summary describes the CSVs produced by R. It does not establish that the records have been inserted into MySQL; the actual database row counts must be checked separately after importing the files in DBeaver.
+
+Consistency with the MySQL schema
+
+The main analysis table is named clean_data in this pipeline. The corresponding SQL schema must define the same table name, and the lacz_expression foreign key must reference clean_data(result_id). All other output table names, fields, and keys must also match the MySQL definitions.
+
+This R Markdown documents the conversion, validation, and CSV export stages. Creating the MySQL schema and importing the files are separate database implementation steps.
