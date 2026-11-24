@@ -1,0 +1,67 @@
+"procedure_code","procedure_name","procedure_description","is_mandatory"
+"ABR","Auditory Brain Stem Response","Auditory brainstem response test determines hearing sensitivity and other physiological parameters using evoked potential recordings in anesthetized mice.Ontological description: MP:0004738 - abnormal brainstem auditory evoked potential.",TRUE
+"ACS","Acoustic Startle and Pre-pulse Inhibition (PPI)",NA,TRUE
+"ALZ","Adult LacZ",NA,FALSE
+"ANA",NA,NA,NA
+"BLK","Tissue Embedding and Block Banking","Collect and fix a standard list of tissues from the complete necropsy (see IMPC Gross Pathology &amp; Tissue Collection SOP)Trim the fixed tissues into cassettes for processingEmbed the tissues in paraffin in a standard orientation",FALSE
+"BMI",NA,NA,NA
+"BWT","Body Weight",NA,TRUE
+"CAL","Indirect Calorimetry",NA,FALSE
+"CBC","Clinical Chemistry",NA,TRUE
+"CHL","Challenge Whole Body Plethysmography",NA,FALSE
+"CSD","Combined SHIRPA and Dysmorphology","SHIRPA and dysmorphology were originally always separate assessments.&nbsp; However they have recently been combined as assessments so that they take place at the same time.The purpose of the assessments is to examine mice for obvious physical characteristics behaviors and morphological abnormalities.Descriptions include abnormal locomotion/appearance/behavior/reflex reactions.",TRUE
+"DXA","Body Composition (DEXA lean/fat)","Measure bone mineral content and density as well as body composition in mice using the DEXA (Dual Energy X-ray Absorptiometry) analyser.",TRUE
+"ECG","Electrocardiogram (ECG)","To provide a high throughput method to obtain Electrocardiograms in a conscious mouse or an anesthetized mouse.",TRUE
+"ECH","Echo","To assess the functionality of the heart in order to determine the presence of a mutant phenotype.",FALSE
+"ECT",NA,NA,NA
+"EEI",NA,NA,NA
+"ELZ","Embryo LacZ",NA,FALSE
+"EMA","MicroCT E18.5",NA,FALSE
+"EML","MicroCT E9.5",NA,FALSE
+"EMO","MicroCT E14.5-E15.5",NA,FALSE
+"EOL","OPT E9.5",NA,FALSE
+"EVL","Viability E9.5 Secondary Screen",NA,FALSE
+"EVM","Viability E12.5 Secondary Screen",NA,FALSE
+"EVO","Viability E14.5-E15.5 Secondary Screen",NA,FALSE
+"EVP","Viability E18.5 Secondary Screen",NA,FALSE
+"EXD","Experimental design","experimental_design",FALSE
+"EYE","Eye Morphology","To detect abnormalities in eye morphology.",TRUE
+"FEA","Fear Conditioning","Fear Conditioning test assesses aversive learning and memory",FALSE
+"FER","Fertility of Homozygous Knock-out Mice","To assess the fertility of homozygous knockout mice.",TRUE
+"FOR","Formalin Test",NA,FALSE
+"GEL","Gross Morphology Embryo E9.5",NA,FALSE
+"GEM","Gross Morphology Embryo E12.5",NA,FALSE
+"GEO","Gross Morphology Embryo E14.5-E15.5",NA,FALSE
+"GEP","Gross Morphology Embryo E18.5",NA,FALSE
+"GPL","Gross Morphology Placenta E9.5",NA,FALSE
+"GPM","Gross Morphology Placenta E12.5",NA,FALSE
+"GPO","Gross Morphology Placenta E14.5-E15.5",NA,FALSE
+"GPP","Gross Morphology Placenta E18.5",NA,FALSE
+"GRS","Grip Strength",NA,TRUE
+"HBD",NA,NA,NA
+"HEM","Hematology","Hematological assessment of blood determines blood cell counts (white blood cells red blood cells hemoglobin and platelets) and additional hematological parameters (hematocrit mean cell volume mean corpuscular hemoglobin mean cell hemoglobin concentration) can be derived using these indices. These tests will indicate abnormalities in the production of blood and its components (blood cells and hemoglobin) as well as in the associated blood-forming organs.&nbsp;Ontological description: MP:0002429 - abnormal blood cell morphology/development.",TRUE
+"HIS","Histopathology",NA,FALSE
+"HOU","Housing and Husbandry","Housing_and_husbandry",FALSE
+"HWT","Heart Weight","To evaluate cardiac size using heart weight and body weight.",TRUE
+"IMM","Immunophenotyping","Immunophenotyping of immune system cells",TRUE
+"INS","Insulin Blood Level","The insulin concentration in the blood is an important indicator of diabetes.Ontological description: abnormal circulating insulin level [MP:0001560]; increased circulating insulin level [MP:0002079]; decreased circulating insulin level [MP:0002727].",FALSE
+"IPG","Intraperitoneal glucose tolerance test (IPGTT)",NA,TRUE
+"LDT","Light-Dark Test","Light-Dark test monitors the anxiety-related behaviour of mice",FALSE
+"LFO",NA,NA,NA
+"MAA","MicroCT E14.5-E15.5 Analysis",NA,FALSE
+"MLN",NA,NA,NA
+"OFD","Open Field","The Open Field test is used to assess anxiety and exploratory behaviors. It is based on the natural tendency of an animal to explore and to protect itself using avoidance which translates to a normal animal spending more time in the periphery of the Open Field arena than in the center (the most anxiogenic area).",TRUE
+"OWT","Organ Weight","Organ weights from different tissues collected for IMPC",FALSE
+"PAT","Gross Pathology and Tissue Collection",NA,TRUE
+"PBI",NA,NA,NA
+"PBT",NA,NA,NA
+"PLC",NA,NA,NA
+"ROT",NA,NA,NA
+"SLW",NA,NA,NA
+"TLS",NA,NA,NA
+"URI",NA,NA,NA
+"VFR",NA,NA,NA
+"VIA","Viability Primary Screen","Assess the viability of mutant mice of each sex and zygosity.",TRUE
+"WEL","Welfare Observations","The Welfare Observations procedure is used for the recording of welfare issues as and when they occur.",FALSE
+"XRY","X-ray","Construct and analyse digital X-ray images in immobilised mice using a Faxitron X-Ray system or NTB digital X-ray scanner.",TRUE
+"YMZ","Y-maze","Y-maze assesses learning and memory; it can be used instead/in parallel of Fear Conditioning",FALSE
