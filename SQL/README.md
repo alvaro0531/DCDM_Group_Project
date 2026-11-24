@@ -31,9 +31,9 @@ Two additional Parameter Group files were also included to store the six paramet
 8. `parameter_group_member.csv`
 
 All eight CSV files were placed in the `database_import` folder as the input for the R Markdown transformation process.
-
 IMPC_Project/
 ├── build_impc_import_tables.Rmd
+│
 ├── database_import/
 │   ├── Group14_Cleaned_Imputed_Dataset.csv
 │   ├── Parameters.csv
@@ -43,8 +43,9 @@ IMPC_Project/
 │   ├── chrom2.csv
 │   ├── parameter_group.csv
 │   └── parameter_group_member.csv
+│
 └── database_import_revised/
-    └── Generated import files
+    └── [Automatically generated files]
 
 ## 3. Splitting the Data Using R Markdown
 
