@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/><style>
+table {border: medium solid #6495ed;border-collapse: collapse;width: 100%;} th{font-family: monospace;border: thin solid #6495ed;padding: 5px;background-color: #D0E3FA;}th{text-align: left;}td{font-family: sans-serif;border: thin solid #6495ed;padding: 5px;text-align: center;}.odd{background:#e8edff;}img{padding:5px; border:solid; border-color: #dddddd #aaaaaa #aaaaaa #dddddd; border-width: 1px 2px 2px 1px; background-color:white;}</style>
+</head>
+<body>
+<table><tr><th colspan="9"><pre><code>-- Query 2 Gene and Parameter Group Summary<br>SELECT<br>  c.mouse_gene_symbol,<br>  c.mgi_gene_id,<br>  pg.group_name AS parameter_group,<br>  COUNT(DISTINCT c.result_id) AS total_tests,<br>  SUM(CASE WHEN c.p_value &lt; 0.0001 THEN 1 ELSE 0 END) AS significant_hits,<br>  MIN(c.p_value) AS min_p_value,<br>  -LOG10(GREATEST(MIN(c.p_value), 1e-300)) AS neg_log10_min_p,<br>  MAX(b.in_impc_dataset) AS in_bespoke_impc_overlap,<br>  COUNT(DISTINCT c2.ensembl_exon_id) AS chrom2_exons<br>FROM data_base_merged.clean_data c<br>INNER JOIN data_base_merged.parameter_group_member pgm<br>  ON c.parameter_stable_id = pgm.parameter_stable_id<br>INNER JOIN data_base_merged.parameter_group pg<br>  ON pgm.group_id = pg.group_id<br>LEFT JOIN data_base_merged.bespoke_task_table b<br>  ON c.mgi_gene_id = b.mgi_gene_id<br>LEFT JOIN data_base_merged.chrom2_gene cg<br>  ON c.mgi_gene_id = cg.mgi_gene_id<br>LEFT JOIN data_base_merged.chrom2_transcript ct<br>  ON cg.ensembl_gene_id = ct.ensembl_gene_id<br>LEFT JOIN data_base_merged.chrom2 c2<br>  ON ct.ensembl_transcript_id = c2.ensembl_transcript_id<br>WHERE c.mouse_gene_symbol IN ('Rhbdl2', 'Scx', 'Muc5ac', 'Parpbp')<br>  AND c.p_value IS NOT NULL<br>GROUP BY<br>  c.mouse_gene_symbol,<br>  c.mgi_gene_id,<br>  pg.group_name<br>ORDER BY<br>  c.mouse_gene_symbol,<br>  min_p_value ASC</code></pre></th></tr><tr><th>mouse_gene_symbol</th><th>mgi_gene_id</th><th>parameter_group</th><th>total_tests</th><th>significant_hits</th><th>min_p_value</th><th>neg_log10_min_p</th><th>in_bespoke_impc_overlap</th><th>chrom2_exons</th></tr><tr class="odd"><td>Parpbp</td><td>MGI:1922567</td><td>Behaviour</td><td>6</td><td>0</td><td>0.020108291</td><td>1.6966248384</td><td>1</td><td>0</td></tr>
+<tr><td>Parpbp</td><td>MGI:1922567</td><td>Clinical chemistry and metabolism</td><td>16</td><td>0</td><td>0.024194116</td><td>1.6162902414</td><td>1</td><td>0</td></tr>
+<tr class="odd"><td>Parpbp</td><td>MGI:1922567</td><td>Images</td><td>26</td><td>0</td><td>0.045412088</td><td>1.3428285292</td><td>1</td><td>0</td></tr>
+<tr><td>Parpbp</td><td>MGI:1922567</td><td>Haematology and immunophenotyping</td><td>5</td><td>0</td><td>0.276394579</td><td>0.5584704791</td><td>1</td><td>0</td></tr>
+<tr class="odd"><td>Parpbp</td><td>MGI:1922567</td><td>Weight</td><td>5</td><td>0</td><td>0.614736179</td><td>0.2113112266</td><td>1</td><td>0</td></tr>
+<tr><td>Rhbdl2</td><td>MGI:3608413</td><td>Haematology and immunophenotyping</td><td>5</td><td>1</td><td>0.0000000025</td><td>8.6045004534</td><td>1</td><td>0</td></tr>
+<tr class="odd"><td>Rhbdl2</td><td>MGI:3608413</td><td>Behaviour</td><td>10</td><td>0</td><td>0.008699338</td><td>2.060513795</td><td>1</td><td>0</td></tr>
+<tr><td>Rhbdl2</td><td>MGI:3608413</td><td>Weight</td><td>5</td><td>0</td><td>0.024176968</td><td>1.6165981643</td><td>1</td><td>0</td></tr>
+<tr class="odd"><td>Rhbdl2</td><td>MGI:3608413</td><td>Images</td><td>22</td><td>0</td><td>0.03838243</td><td>1.4158675335</td><td>1</td><td>0</td></tr>
+<tr><td>Rhbdl2</td><td>MGI:3608413</td><td>Clinical chemistry and metabolism</td><td>11</td><td>0</td><td>0.081495435</td><td>1.0888667178</td><td>1</td><td>0</td></tr>
+<tr class="odd"><td>Scx</td><td>MGI:102934</td><td>Clinical chemistry and metabolism</td><td>10</td><td>0</td><td>0.0001676587</td><td>3.7755738762</td><td>1</td><td>0</td></tr>
+<tr><td>Scx</td><td>MGI:102934</td><td>Images</td><td>48</td><td>0</td><td>0.037367441</td><td>1.4275066425</td><td>1</td><td>0</td></tr>
+<tr class="odd"><td>Scx</td><td>MGI:102934</td><td>Haematology and immunophenotyping</td><td>11</td><td>0</td><td>0.076462458</td><td>1.116551745</td><td>1</td><td>0</td></tr>
+<tr><td>Scx</td><td>MGI:102934</td><td>Weight</td><td>5</td><td>0</td><td>0.326988425</td><td>0.4854676206</td><td>1</td><td>0</td></tr>
+<tr class="odd"><td>Scx</td><td>MGI:102934</td><td>Behaviour</td><td>2</td><td>0</td><td>0.805319633</td><td>0.0940317131</td><td>1</td><td>0</td></tr>
+<tr><td>Scx</td><td>MGI:102934</td><td>Brain</td><td>6</td><td>0</td><td>0.853004742</td><td>0.0690485545</td><td>1</td><td>0</td></tr>
+</table></body></html>
