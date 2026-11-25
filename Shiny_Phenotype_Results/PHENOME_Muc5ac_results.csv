@@ -1,0 +1,2 @@
+"analysis_id","gene_accession_id","gene_symbol","allele_symbol","strain_name","parameter_id","parameter_name","p_value","mouse_life_stage","score","significance","model_label","significance_threshold"
+"an6585326475","MGI:104697","Muc5ac","Muc5ac<tm2b(EUCOMM)Hmgu>","C57BL/6N","IMPC_ECH_002_001","End-Diastolic Diameter",0.177766437,"Early adult",0.7501502321264,"Non-significant","Muc5ac<tm2b(EUCOMM)Hmgu> | C57BL/6N",0.05

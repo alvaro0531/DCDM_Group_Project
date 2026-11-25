@@ -1,0 +1,153 @@
+"analysis_id","gene_accession_id","gene_symbol","allele_symbol","strain_name","parameter_id","parameter_name","p_value","mouse_life_stage","score","significance","model_label","significance_threshold"
+"an1038358558","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_072_001","Rostal-caudal patterning",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1057246175","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_IPG_010_001","Fasted blood glucose concentration",0.628624476,"Early adult",0.201608713383987,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1082291071","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_067_001","Syndactyly",0,"E15.5",NA,"Reported zero","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1181623267","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_HEM_005_001","Mean cell volume",0.229201255,"Early adult",0.639783008702542,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1181686637","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_064_001","Facial hypoplasia",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1315850886","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","UCD_OWT_029_001","Body length",0.037367441,"Early adult",1.42750664252051,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1472189430","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_036_001","Neural Tube Closure",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1529126944","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_029_001","Tail Morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1627224689","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_065_001","Heart looping",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1722957234","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_HEM_002_001","Red blood cell count",0.7049278,"Early adult",0.151855361969327,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1750975069","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_041_001","Eye Morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1852934341","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_069_001","Hindbrain morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2238043158","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_025_002","Pallor",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2245297360","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_028_001","Limb Plate Morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2249913875","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_064_001","Edema",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2288448704","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_024_001","Vibrissae - appearance",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2323360116","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_ABR_004_001","6kHz-evoked ABR Threshold",0.032432432,"Early adult",1.48902048380996,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2565103393","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_067_001","Syndactyly",0,"E15.5",NA,"Reported zero","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2603190666","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_008_001","Coat - color pattern - back",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2677473035","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CBC_005_001","Creatinine",0.019489795,"Early adult",1.71019272890891,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2709259302","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_017_001","Visceral yolk sac morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2732789197","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_061_001","Severely Dysmorphic",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2736896767","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GPM_002_001","Placenta Morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2755521785","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_XRY_012_001","Pelvis",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2760402857","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_009_002","Hemorrhage",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2783365498","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_ACS_006_001","Response amplitude - S",0.73269999,"Early adult",0.135073814388311,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2795195518","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_052_002","Forelimb nail - length",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2821633139","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_HEM_031_001","Lymphocyte differential count",0.831447354,"Early adult",0.0801652444494312,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an2999767091","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_011_001","Blood Vessel Morphology",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3039088467","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_ACS_033_001","% Pre-pulse inhibition - PPI1",0.061974529,"Early adult",1.20778676514067,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3082484553","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_076_001","Edema",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3243300052","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_ACS_034_001","% Pre-pulse inhibition - PPI2",0.253538613,"Early adult",0.595955889838318,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3250913356","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_ABR_012_001","30kHz-evoked ABR Threshold",0.026737968,"Early adult",1.57287160081074,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3282865082","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_EYE_019_001","Synechia",0.010334147,"Early adult",1.98572536504362,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3416107983","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_ABR_008_001","18kHz-evoked ABR Threshold",0.032085561,"Early adult",1.49369036288442,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3480063079","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_038_002","Pale Liver",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3481479059","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CBC_014_001","Alkaline phosphatase",0.201092286,"Early adult",0.696604588835825,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3485804612","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_066_001","Microcephaly",0,"E15.5",NA,"Reported zero","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3504904798","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_EYE_003_001","Eye Hemorrhage or Blood Presence",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3634743717","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_068_001","Teeth presence",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3675369657","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_021_001","Ear Morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3692918981","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","UCD_OWT_002_001","Heart weight",0.392067452,"Early adult",0.406639209736304,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3707888945","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","UCD_OWT_003_001","Spleen weight",0.362454231,"Early adult",0.440746826276684,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3784112570","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GRS_008_001","Forelimb grip strength measurement mean",0.805319633,"Early adult",0.0940317130525773,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3832335624","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_043_002","Microphthalmia",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3873987058","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","UCD_OWT_010_001","Brain weight",0.853004742,"Early adult",0.0690485545080821,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3921986361","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CBC_018_001","Glucose",0.398269627,"Early adult",0.399822812669929,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3935576248","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_ECG_004_001","RR",0.562688373,"Early adult",0.249732058711497,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an3935894005","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_064_001","Facial hypoplasia",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4025919429","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_HEM_003_001","Hemoglobin",0.725712724,"Early adult",0.13923526231939,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4057120285","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_025_002","Pallor",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4212116578","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_EVO_001_001","Outcome",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4243262928","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_061_001","Severely Dysmorphic",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4243730253","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_070_001","Midbrain morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4247719020","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_069_001","Delayed embryonic development",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4313079016","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_022_001","Ear Morphology",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4319270068","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_062_001","Abdominal wall",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4320433387","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_077_001","Hemorrhage",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4403899581","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_029_001","Skin Appearance",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4478653218","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_028_001","Vibrissa Morphology",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4550833326","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GPM_002_001","Placenta Morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4660130708","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GPM_005_001","Umbilical cord morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4788489602","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","UCD_OWT_011_001","Left lung weight",0.531402546,"Early adult",0.274576369174702,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4811604833","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_HEM_006_001","Mean corpuscular hemoglobin",0.434321611,"Early adult",0.362188560450017,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4831401937","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_026_002","Blebs",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4915417814","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_023_001","Vibrissae - presence",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4962914028","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_068_001","Forebrain morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5012984103","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_034_002","Polydactyly",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5016946020","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_EYE_015_001","Iris Pigmentation",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5088030331","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_018_002","Cleft Palate",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5186154952","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_017_002","Facial Cleft",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5207828383","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_072_001","Rostal-caudal patterning",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5255519781","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_HEM_038_001","Basophil differential count",0.076462458,"Early adult",1.11655174504733,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5269541962","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_075_001","Delayed embryonic development",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5302522167","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_071_001","Facial hypoplasia",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5450652954","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_VIA_064_001","Homozygous females viability",0,"Early adult",NA,"Reported zero","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5464266613","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_077_001","Hemorrhage",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5590731120","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_XRY_003_001","Maxilla/Pre-maxilla",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5770145700","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_065_001","Heart looping",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5802878271","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_OFD_010_001","Periphery distance travelled",0.190166453,"Early adult",0.720866093928478,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5860983137","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_047_001","Head shape",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5959490574","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_047_002","Microphthalmia",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an6141351456","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_071_001","Microcephaly",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an6240667006","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_DXA_005_001","Bone Mineral Content (excluding skull)",0.327615274,"Early adult",0.484635858867408,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an6349239241","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_022_001","Ear Morphology",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an6372068767","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_043_002","Microphthalmia",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an6415031397","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_019_001","Embryo Size",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an6440879415","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_070_001","Lower teeth appearance",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an6478358251","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_HEM_035_001","Eosinophil differential count",0.555594692,"Early adult",0.255241912045512,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an6691864015","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_041_002","Exencephaly",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an6889690989","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_037_001","Liver Size",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an6910730986","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_HEM_037_001","Basophil cell count",0.082306879,"Early adult",1.08456386604055,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an6932576102","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_OFD_022_001","Percentage center time",0.041969753,"Early adult",1.37706358668683,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7022212810","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","UCD_OWT_020_001","Right testis weight",0.326988425,"Early adult",0.485467620573968,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7032410137","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_HEM_029_001","Neutrophil differential count",0.873350636,"Early adult",0.0588113591500496,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7102824946","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CAL_017_001","Respiratory Exchange Ratio",0.659659878,"Early adult",0.180679929885136,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7113303143","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_043_002","spina bifida",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7162026941","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_073_001","Vascular morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7176279029","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_043_002","spina bifida",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7245605596","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_064_001","Edema",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7273857425","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_024_001","Skin Appearance",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7461398705","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_067_001","Left-right axis patterning",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7566963199","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CBC_009_001","Calcium",0.006883696,"Early adult",2.16217831737378,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7734291529","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_010_001","Coat - color pattern - abdomen",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7845724001","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_063_001","Craniofacial morphology",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7851970121","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GPM_004_001","Placenta Size",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7852491016","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_ABR_006_001","12kHz-evoked ABR Threshold",0.027027027,"Early adult",1.56820172450129,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8022483564","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_019_001","Embryo Size",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8073121380","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","UCD_OWT_005_001","Right kidney",0.513194863,"Early adult",0.289717699494925,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8186123926","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CBC_012_001","Aspartate aminotransferase",NA,"Early adult",NA,"Missing","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8193847819","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CBC_015_001","Total cholesterol",0.03414664,"Early adult",1.46665202408348,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8282056929","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_036_001","Neural Tube Closure",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8288797479","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_DXA_010_001","Bone Area",0.547348539,"Early adult",0.261736036810665,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8355945710","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_INS_001_001","Insulin",0.856207313,"Early adult",0.0674210671090643,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8440570498","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_EYE_083_001","Vitreous",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8453669861","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_HEM_008_001","Platelet count",0.40752236,"Early adult",0.389848557333322,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8714757690","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_066_001","Heart morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8717202200","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_069_001","Upper teeth appearance",NA,"Early adult",NA,"Missing","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8746332142","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_OFD_016_001","Center permanence time",0.050330257,"Early adult",1.29817085197129,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8759212524","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_047_001","Head shape",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8766107990","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_036_001","Startle response",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8896993318","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_071_001","Facial hypoplasia",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8942798413","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_029_001","Skin Appearance",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8997109244","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_042_002","Forepaw - shape",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9053114876","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_030_001","Tremor",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9129248648","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_ECG_008_001","ST",0.001566616,"Early adult",2.80503744227942,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9159770751","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_018_002","Cleft Palate",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9273172751","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_071_001","Microcephaly",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9387615963","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_019_001","Embryo Size",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9485718048","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_XRY_031_001","Digit integrity",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9495199650","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_IPG_011_001","Initial response to glucose challenge",0.488105727,"Early adult",0.311486096687043,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9684832584","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_HEM_001_001","White blood cell count",0.727291156,"Early adult",0.138291693500683,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9704914237","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_038_001","Trunk curl",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9728712205","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_044_002","Forelimb digit - number",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9728814668","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_EYE_025_001","Retinal Blood Vessels Structure",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9792206229","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_029_001","Tail Morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9870944349","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_EYE_011_001","Pupil Position",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9974896746","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_033_002","Pale Liver",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an1222436633","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_OFD_014_001","Center distance travelled",0.000464031133657963,"Early adult",3.33345287995751,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4365382396","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_066_001","Microcephaly",0,"E15.5",NA,"Reported zero","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4378773470","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_041_002","Exencephaly",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an4400800637","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_028_001","Limb Plate Morphology",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5258678507","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_033_001","Tail Morphology",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5386435060","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CBC_008_001","Total bilirubin",0.099720055,"Early adult",1.00121749063567,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5423128894","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_ABR_002_001","Click-evoked ABR threshold",0.053475936,"Early adult",1.27184160514676,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5887765926","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_011_001","Blood Vessel Morphology",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an5991895067","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CBC_007_001","Albumin",0.000167658711356489,"Early adult",3.77557387620019,"Significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an7491841298","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEM_063_001","Facial cleft",1,"E12.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an8362199027","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_040_002","Forepaw - size",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9156360952","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_GEO_072_001","Pallor",1,"E15.5",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9860123480","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_013_001","Coat - hair distribution - abdomen",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
+"an9932557446","MGI:102934","Scx","Scx<tm1.1(KOMP)Vlcg>","C57BL/6NCrl","IMPC_CSD_006_001","Coat - color - head",1,"Early adult",0,"Non-significant","Scx<tm1.1(KOMP)Vlcg> | C57BL/6NCrl",0.05
