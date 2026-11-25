@@ -1,0 +1,1434 @@
+---
+title: "SQL Import & Query"
+format: html
+editor: visual
+---
+
+### Set Up for Importing
+
+All our csv files need to ensure standardised column names to avoid errors when importing - this is done using R so we gather all our csv files
+
+```{r}
+library(readr)
+library(dplyr)
+
+csv_dir <- "."
+
+csv_files <- c(
+  bespoke_task_mp_bridge = "bespoke_task_mp_bridge.csv",
+  bespoke_task_table     = "bespoke_task_table.csv",
+  disease_clean          = "disease_clean.csv",
+  genotype_bridge        = "genotype_bridge.csv",
+  IMPC_parameters        = "IMPC_parameters.csv",
+  mouse_merged           = "mouse_merged.csv",
+  procedures             = "procedures.csv"
+)
+```
+
+# 1. Print the exact column names of each CSV
+
+```{r}
+col_list <- lapply(file.path(csv_dir, csv_files), function(p) {
+  names(read_csv(p, n_max = 0, show_col_types = FALSE))
+})
+names(col_list) <- names(csv_files)
+col_list
+
+```
+
+# 2. Build a cross-table map showing which columns appear in which CSVs
+
+```{r}
+col_audit <- bind_rows(lapply(names(col_list), function(tbl) {
+  data.frame(table = tbl, column = col_list[[tbl]], stringsAsFactors = FALSE)
+})) %>%
+  group_by(column) %>%
+  summarise(
+    n_tables = n(),
+    tables = paste(table, collapse = ", "),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(n_tables), column)
+
+print(col_audit, n = 100)
+
+csv_dir <- "."
+out_dir <- "standardised_csvs"
+
+if (!dir.exists(out_dir)) {
+  dir.create(out_dir, recursive = TRUE)
+}
+```
+
+# Renaming all our tables
+
+```{r}
+# 1. bespoke_task_mp_bridge
+bespoke_task_mp_bridge_std <- read_csv(file.path(csv_dir, "bespoke_task_mp_bridge.csv"), show_col_types = FALSE) %>%
+  rename(
+    bespoke_row_id = task_row_id,
+    mp_term_id     = mp_id
+  )
+
+# 2. bespoke_task_table
+bespoke_task_table_std <- read_csv(file.path(csv_dir, "bespoke_task_table.csv"), show_col_types = FALSE) %>%
+  rename(
+    bespoke_row_id = task_row_id,
+    mgi_gene_id    = mgi_id
+  ) %>%
+  select(bespoke_row_id, human_gene_symbol, human_ncbi_gene_id, mouse_gene_symbol, mgi_gene_id)
+
+# 3. disease_clean (drop unsplit mouse_genotype_ids now that genotype_bridge holds them)
+disease_clean_std <- read_csv(file.path(csv_dir, "disease_clean.csv"), show_col_types = FALSE) %>%
+  rename(
+    disease_row_id = row_id,
+    mgi_gene_id    = mgi_id
+  ) %>%
+  select(
+    disease_row_id,
+    human_gene_symbol,
+    human_gene_name,
+    hgnc_id,
+    disease_name,
+    doid,
+    mouse_gene_symbol,
+    mgi_gene_id
+  )
+
+# 4. genotype_bridge
+genotype_bridge_std <- read_csv(file.path(csv_dir, "genotype_bridge.csv"), show_col_types = FALSE) %>%
+  rename(disease_row_id = row_id) %>%
+  select(disease_row_id, mouse_genotype_id)
+
+# 5. IMPC_parameters
+impc_parameters_std <- read_csv(file.path(csv_dir, "IMPC_parameters.csv"), show_col_types = FALSE) %>%
+  rename(
+    impc_parameter_orig_id = impcParameterOrigId,
+    parameter_stable_id    = parameterId,
+    parameter_name         = name,
+    parameter_description    = description
+  ) %>%
+  select(impc_parameter_orig_id, parameter_stable_id, parameter_name, parameter_description)
+
+# 6. mouse_merged
+mouse_merged_std <- read_csv(file.path(csv_dir, "mouse_merged.csv"), show_col_types = FALSE) %>%
+  rename(
+    mgi_gene_id         = gene_accession_id,
+    mouse_gene_symbol   = gene_symbol,
+    parameter_stable_id = parameter_id
+  )
+
+# 7. procedures
+procedures_std <- read_csv(file.path(csv_dir, "procedures.csv"), show_col_types = FALSE) %>%
+  rename(
+    impc_parameter_orig_id = impcParameterOrigId,
+    procedure_name         = name,
+    procedure_description    = description,
+    is_mandatory           = isMandatory
+  ) %>%
+  select(impc_parameter_orig_id, procedure_name, procedure_description, is_mandatory)
+```
+
+# Save standardised CSVs
+
+```{r}
+std_tables <- list(
+  bespoke_task_mp_bridge = bespoke_task_mp_bridge_std,
+  bespoke_task_table     = bespoke_task_table_std,
+  disease_clean          = disease_clean_std,
+  genotype_bridge        = genotype_bridge_std,
+  IMPC_parameters        = impc_parameters_std,
+  mouse_merged           = mouse_merged_std,
+  procedures             = procedures_std
+)
+
+for (nm in names(std_tables)) {
+  write_csv(std_tables[[nm]], file.path(out_dir, paste0(nm, ".csv")), na = "")
+}
+```
+
+# Check the column names 
+
+And lets also check which column names are in what tables and how many tables
+
+```{r}
+std_cols <- bind_rows(lapply(names(std_tables), function(tbl) {
+  data.frame(table = tbl, column = names(std_tables[[tbl]]), stringsAsFactors = FALSE)
+})) %>%
+  group_by(column) %>%
+  summarise(
+    n_tables = n(),
+    tables = paste(table, collapse = ", "),
+    .groups = "drop"
+  ) %>%
+  filter(n_tables > 1) %>%
+  arrange(desc(n_tables), column)
+
+print(std_cols, n = 50)
+
+
+intersect(
+  c("mgi_gene_id", "mouse_gene_symbol", "parameter_stable_id", "parameter_name"),
+  names(mouse_merged_std)
+)
+
+```
+
+# Add chromsome 2 to our folder
+
+```{r}
+library(dplyr)
+library(readr)
+
+chrom2_std <- chrom2 %>%
+  rename(
+    ensembl_gene_id       = `Gene.stable.ID`,
+    ensembl_transcript_id = `Transcript.stable.ID`,
+    gene_name             = `Gene.name`,
+    ensembl_exon_id       = `Exon.stable.ID`,
+    exon_start            = `Exon.region.start..bp.`,
+    exon_end              = `Exon.region.end..bp.`,
+    exon_rank             = `Exon.rank.in.transcript`
+  ) %>%
+  mutate(
+    across(
+      c(ensembl_gene_id, ensembl_transcript_id, gene_name, ensembl_exon_id),
+      ~ trimws(as.character(.x))
+    ),
+    exon_start = as.numeric(exon_start),
+    exon_end   = as.numeric(exon_end),
+    exon_rank  = as.integer(exon_rank)
+  )
+
+# Verify exact column names
+names(chrom2_std)
+
+out_dir <- "standardised_csvs"
+if (!dir.exists(out_dir)) {
+  dir.create(out_dir, recursive = TRUE)
+}
+
+write_csv(chrom2_std, file.path(out_dir, "chrom2.csv"), na = "")
+
+names(chrom2_std)
+```
+
+### Standardisation is now complete lets begin to import into SQL
+
+# Create the SQL Schema
+
+```{sql connection=}
+
+CREATE DATABASE IF NOT EXISTS data_base_merged
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+USE data_base_merged;
+
+-- 1. Mouse MGI reference (union across datasets).
+CREATE TABLE mouse_gene (
+    mgi_gene_id VARCHAR(32) NOT NULL,
+    mouse_gene_symbol VARCHAR(128),
+    PRIMARY KEY (mgi_gene_id),
+    INDEX idx_mouse_gene_symbol (mouse_gene_symbol)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 2. Human gene reference.
+CREATE TABLE human_gene (
+    human_gene_id BIGINT NOT NULL AUTO_INCREMENT,
+    human_gene_symbol VARCHAR(128),
+    human_gene_name VARCHAR(255),
+    human_ncbi_gene_id VARCHAR(64),
+    hgnc_id VARCHAR(64),
+    PRIMARY KEY (human_gene_id),
+    UNIQUE KEY uq_human_ncbi_gene_id (human_ncbi_gene_id),
+    UNIQUE KEY uq_human_hgnc_id (hgnc_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 3. Procedure catalogue.
+CREATE TABLE procedures (
+    procedure_code VARCHAR(32) NOT NULL,
+    impc_parameter_orig_id BIGINT,
+    procedure_name VARCHAR(255),
+    procedure_description TEXT,
+    is_mandatory TINYINT(1),
+    PRIMARY KEY (procedure_code),
+    INDEX idx_proc_orig_id (impc_parameter_orig_id),
+    CONSTRAINT chk_proc_mandatory CHECK (is_mandatory IS NULL OR is_mandatory IN (0, 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 4. Parameter metadata.
+CREATE TABLE IMPC_parameters (
+    parameter_stable_id VARCHAR(64) NOT NULL,
+    parameter_name VARCHAR(255) NOT NULL,
+    parameter_description TEXT,
+    procedure_code VARCHAR(32),
+    impc_parameter_orig_id BIGINT,
+    PRIMARY KEY (parameter_stable_id),
+    INDEX idx_param_proc_code (procedure_code),
+    INDEX idx_param_orig_id (impc_parameter_orig_id),
+    CONSTRAINT fk_param_procedure FOREIGN KEY (procedure_code)
+        REFERENCES procedures(procedure_code)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. Phenotype parameter groups (6 core groups seeded).
+CREATE TABLE parameter_group (
+    group_id INT NOT NULL AUTO_INCREMENT,
+    group_name VARCHAR(128) NOT NULL,
+    PRIMARY KEY (group_id),
+    UNIQUE KEY uq_group_name (group_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO parameter_group (group_name) VALUES
+    ('Weight'),
+    ('Images'),
+    ('Brain'),
+    ('Haematology and immunophenotyping'),
+    ('Behaviour'),
+    ('Clinical chemistry and metabolism');
+
+-- 6. Many-to-many parameter/group membership.
+CREATE TABLE parameter_group_member (
+    group_id INT NOT NULL,
+    parameter_stable_id VARCHAR(64) NOT NULL,
+    PRIMARY KEY (group_id, parameter_stable_id),
+    INDEX idx_groupmember_param (parameter_stable_id),
+    CONSTRAINT fk_groupmember_group FOREIGN KEY (group_id)
+        REFERENCES parameter_group(group_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_groupmember_param FOREIGN KEY (parameter_stable_id)
+        REFERENCES IMPC_parameters(parameter_stable_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 7. Core phenotype analysis rows (one row per test record; lacZ separated).
+CREATE TABLE clean_data (
+    result_id BIGINT NOT NULL AUTO_INCREMENT,
+    analysis_id VARCHAR(128) NOT NULL,
+    mgi_gene_id VARCHAR(32),
+    mouse_gene_symbol VARCHAR(128),
+    allele_symbol VARCHAR(255),
+    strain_name VARCHAR(255),
+    parameter_stable_id VARCHAR(64),
+    parameter_name VARCHAR(255),
+    p_value DOUBLE,
+    mouse_life_stage VARCHAR(64),
+    source_file VARCHAR(512),
+    PRIMARY KEY (result_id),
+    INDEX idx_analysis_id (analysis_id),
+    INDEX idx_results_mgi (mgi_gene_id),
+    INDEX idx_results_param (parameter_stable_id),
+    INDEX idx_results_gene_symbol (mouse_gene_symbol),
+    CONSTRAINT fk_result_mouse FOREIGN KEY (mgi_gene_id)
+        REFERENCES mouse_gene(mgi_gene_id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_result_param FOREIGN KEY (parameter_stable_id)
+        REFERENCES IMPC_parameters(parameter_stable_id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT chk_result_pvalue CHECK (p_value IS NULL OR (p_value >= 0 AND p_value <= 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 8. Per-analysis lacZ expression (11 tissue columns).
+CREATE TABLE lacz_expression (
+    result_id BIGINT NOT NULL,
+    lacz_blood VARCHAR(64),
+    lacz_brain VARCHAR(64),
+    lacz_colon VARCHAR(64),
+    lacz_eye VARCHAR(64),
+    lacz_heart VARCHAR(64),
+    lacz_kidney VARCHAR(64),
+    lacz_liver VARCHAR(64),
+    lacz_lung VARCHAR(64),
+    lacz_skeletal_muscle VARCHAR(64),
+    lacz_skin VARCHAR(64),
+    lacz_vascular_system VARCHAR(64),
+    PRIMARY KEY (result_id),
+    CONSTRAINT fk_lacz_result FOREIGN KEY (result_id)
+        REFERENCES clean_data(result_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 9. Bespoke task table + IMPC overlap flag + future HP metadata fields.
+CREATE TABLE bespoke_task_table (
+    bespoke_row_id BIGINT NOT NULL,
+    human_gene_symbol VARCHAR(128),
+    human_ncbi_gene_id VARCHAR(64),
+    mouse_gene_symbol VARCHAR(128),
+    mgi_gene_id VARCHAR(32),
+    human_gene_id BIGINT,
+    hp_term_name VARCHAR(255),
+    hp_description TEXT,
+    in_impc_dataset TINYINT(1),
+    PRIMARY KEY (bespoke_row_id),
+    INDEX idx_bespoke_gene_pair (human_ncbi_gene_id, mgi_gene_id),
+    INDEX idx_bespoke_mouse (mgi_gene_id),
+    INDEX idx_bespoke_human (human_gene_id),
+    INDEX idx_bespoke_overlap (in_impc_dataset),
+    CONSTRAINT fk_bespoke_mouse FOREIGN KEY (mgi_gene_id)
+        REFERENCES mouse_gene(mgi_gene_id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_bespoke_human FOREIGN KEY (human_gene_id)
+        REFERENCES human_gene(human_gene_id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT chk_bespoke_in_impc CHECK (in_impc_dataset IS NULL OR in_impc_dataset IN (0, 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 10. Distinct Mammalian Phenotype terms.
+CREATE TABLE mp_terms (
+    mp_term_id VARCHAR(32) NOT NULL,
+    mp_term_name VARCHAR(255),
+    PRIMARY KEY (mp_term_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 11. Bespoke-to-MP bridge table.
+CREATE TABLE bespoke_task_mp_bridge (
+    bespoke_row_id BIGINT NOT NULL,
+    mp_term_id VARCHAR(32) NOT NULL,
+    PRIMARY KEY (bespoke_row_id, mp_term_id),
+    INDEX idx_bespoke_mp_term (mp_term_id),
+    CONSTRAINT fk_bespokemp_bespoke FOREIGN KEY (bespoke_row_id)
+        REFERENCES bespoke_task_table(bespoke_row_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_bespokemp_term FOREIGN KEY (mp_term_id)
+        REFERENCES mp_terms(mp_term_id)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 12. Distinct Disease Ontology terms.
+CREATE TABLE human_diseases (
+    doid VARCHAR(32) NOT NULL,
+    disease_name VARCHAR(255),
+    PRIMARY KEY (doid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 13. Disease associations.
+CREATE TABLE disease_clean (
+    disease_row_id BIGINT NOT NULL,
+    human_gene_symbol VARCHAR(128),
+    human_gene_name VARCHAR(255),
+    hgnc_id VARCHAR(64),
+    disease_name VARCHAR(255),
+    doid VARCHAR(32),
+    mouse_gene_symbol VARCHAR(128),
+    mgi_gene_id VARCHAR(32),
+    human_gene_id BIGINT,
+    PRIMARY KEY (disease_row_id),
+    INDEX idx_disease_hgnc_do (hgnc_id, doid),
+    INDEX idx_disease_mouse (mgi_gene_id),
+    INDEX idx_disease_term (doid),
+    INDEX idx_disease_human (human_gene_id),
+    CONSTRAINT fk_disease_mouse FOREIGN KEY (mgi_gene_id)
+        REFERENCES mouse_gene(mgi_gene_id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_disease_human FOREIGN KEY (human_gene_id)
+        REFERENCES human_gene(human_gene_id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_disease_do FOREIGN KEY (doid)
+        REFERENCES human_diseases(doid)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 14. Expanded genotype bridge table.
+CREATE TABLE genotype_bridge (
+    disease_row_id BIGINT NOT NULL,
+    mouse_genotype_id VARCHAR(255) NOT NULL,
+    PRIMARY KEY (disease_row_id, mouse_genotype_id),
+    INDEX idx_genotype_id (mouse_genotype_id),
+    CONSTRAINT fk_genotype_disease FOREIGN KEY (disease_row_id)
+        REFERENCES disease_clean(disease_row_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 15. Ensembl gene table (supports future chromosomes).
+CREATE TABLE chrom2_gene (
+    ensembl_gene_id VARCHAR(32) NOT NULL,
+    gene_name VARCHAR(255),
+    mgi_gene_id VARCHAR(32),
+    mouse_gene_symbol VARCHAR(128),
+    PRIMARY KEY (ensembl_gene_id),
+    INDEX idx_chromgene_mgi (mgi_gene_id),
+    CONSTRAINT fk_chromgene_mgi FOREIGN KEY (mgi_gene_id)
+        REFERENCES mouse_gene(mgi_gene_id)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 16. Ensembl transcript table.
+CREATE TABLE chrom2_transcript (
+    ensembl_transcript_id VARCHAR(32) NOT NULL,
+    ensembl_gene_id VARCHAR(32) NOT NULL,
+    PRIMARY KEY (ensembl_transcript_id),
+    INDEX idx_chromtranscript_gene (ensembl_gene_id),
+    CONSTRAINT fk_chromtranscript_gene FOREIGN KEY (ensembl_gene_id)
+        REFERENCES chrom2_gene(ensembl_gene_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 17. Exon records.
+CREATE TABLE chrom2 (
+    chrom2_row_id BIGINT NOT NULL AUTO_INCREMENT,
+    ensembl_gene_id VARCHAR(32),
+    ensembl_transcript_id VARCHAR(32) NOT NULL,
+    gene_name VARCHAR(255),
+    ensembl_exon_id VARCHAR(32) NOT NULL,
+    exon_start BIGINT,
+    exon_end BIGINT,
+    exon_rank INT,
+    PRIMARY KEY (chrom2_row_id),
+    UNIQUE KEY uq_chrom_transcript_exon (ensembl_transcript_id, ensembl_exon_id),
+    INDEX idx_chrom_gene_id (ensembl_gene_id),
+    INDEX idx_chrom_exon_id (ensembl_exon_id),
+    CONSTRAINT fk_chrom2_transcript FOREIGN KEY (ensembl_transcript_id)
+        REFERENCES chrom2_transcript(ensembl_transcript_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT chk_chrom_coordinates CHECK (exon_start IS NULL OR exon_end IS NULL OR exon_start <= exon_end),
+    CONSTRAINT chk_chrom_rank CHECK (exon_rank IS NULL OR exon_rank >= 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 18. Optional group-specific external annotations.
+CREATE TABLE parameter_group_external_data (
+    external_record_id BIGINT NOT NULL AUTO_INCREMENT,
+    group_id INT NOT NULL,
+    resource_name VARCHAR(128) NOT NULL,
+    external_id VARCHAR(64) NOT NULL,
+    term_or_label VARCHAR(255),
+    notes TEXT,
+    mgi_gene_id VARCHAR(32),
+    PRIMARY KEY (external_record_id),
+    INDEX idx_external_group_resource (group_id, resource_name),
+    INDEX idx_external_external_id (external_id),
+    INDEX idx_external_gene (mgi_gene_id),
+    CONSTRAINT fk_external_group FOREIGN KEY (group_id)
+        REFERENCES parameter_group(group_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_external_mouse FOREIGN KEY (mgi_gene_id)
+        REFERENCES mouse_gene(mgi_gene_id)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+```
+
+# Importing the data to the schema 
+
+Connect via R
+
+```{r}
+con <- dbConnect(
+  RMariaDB::MariaDB(),
+  dbname   = "data_base_merged",
+  host     = "127.0.0.1",
+  port     = 3306,
+  username = "root",
+  password = rstudioapi::askForPassword("MySQL root password")
+```
+
+Importing process continued...
+
+```{r}
+setwd("../Raw Data/loading_txt_files/standardised_csvs/")
+getwd()
+
+csv_dir <- "."
+
+# 2. Load the 8 CSVs present in standardised_csvs
+bespoke_task_mp_bridge_df <- read_csv(file.path(csv_dir, "bespoke_task_mp_bridge.csv"), na = c("", "NA"), show_col_types = FALSE) %>%
+  mutate(across(where(is.character), ~ na_if(trimws(.x), ""))) %>%
+  distinct()
+
+bespoke_task_table_df <- read_csv(file.path(csv_dir, "bespoke_task_table.csv"), na = c("", "NA"), show_col_types = FALSE) %>%
+  mutate(across(where(is.character), ~ na_if(trimws(.x), "")))
+
+disease_clean_df <- read_csv(file.path(csv_dir, "disease_clean.csv"), na = c("", "NA"), show_col_types = FALSE) %>%
+  mutate(across(where(is.character), ~ na_if(trimws(.x), "")))
+
+genotype_bridge_df <- read_csv(file.path(csv_dir, "genotype_bridge.csv"), na = c("", "NA"), show_col_types = FALSE) %>%
+  mutate(across(where(is.character), ~ na_if(trimws(.x), ""))) %>%
+  distinct()
+
+impc_parameters_df <- read_csv(file.path(csv_dir, "IMPC_parameters.csv"), na = c("", "NA"), show_col_types = FALSE) %>%
+  mutate(across(where(is.character), ~ na_if(trimws(.x), "")))
+
+procedures_df <- read_csv(file.path(csv_dir, "procedures.csv"), na = c("", "NA"), show_col_types = FALSE) %>%
+  mutate(across(where(is.character), ~ na_if(trimws(.x), "")))
+
+mouse_merged_df <- read_csv(file.path(csv_dir, "mouse_merged.csv"), na = c("", "NA"), show_col_types = FALSE) %>%
+  mutate(
+    across(where(is.character), ~ na_if(trimws(.x), "")),
+    result_id = if (!"result_id" %in% names(.)) row_number() else result_id
+  )
+
+chrom2_df <- read_csv(file.path(csv_dir, "chrom2.csv"), na = c("", "NA"), show_col_types = FALSE) %>%
+  mutate(across(where(is.character), ~ na_if(trimws(.x), "")))
+
+# 3. Split mouse_merged into clean_data and lacz_expression
+lacz_cols <- c(
+  "lacz_blood", "lacz_brain", "lacz_colon", "lacz_eye",
+  "lacz_heart", "lacz_kidney", "lacz_liver", "lacz_lung",
+  "lacz_skeletal_muscle", "lacz_skin", "lacz_vascular_system"
+)
+
+clean_data_df <- mouse_merged_df %>%
+  select(any_of(c(
+    "result_id", "analysis_id", "mgi_gene_id", "mouse_gene_symbol",
+    "allele_symbol", "strain_name", "parameter_stable_id", "parameter_name",
+    "p_value", "mouse_life_stage", "source_file"
+  )))
+
+lacz_expression_df <- mouse_merged_df %>%
+  select(any_of(c("result_id", lacz_cols)))
+
+# 4. Flag bespoke rows overlapping IMPC mgi_gene_id + add future HP columns if absent
+impc_mgi_ids <- unique(na.omit(clean_data_df$mgi_gene_id))
+bespoke_task_table_df <- bespoke_task_table_df %>%
+  mutate(
+    in_impc_dataset = as.integer(!is.na(mgi_gene_id) & mgi_gene_id %in% impc_mgi_ids),
+    hp_term_name    = if (!"hp_term_name" %in% names(.)) NA_character_ else hp_term_name,
+    hp_description  = if (!"hp_description" %in% names(.)) NA_character_ else hp_description
+  )
+
+# 5. Derive required parent/reference tables
+mouse_gene_df <- bind_rows(
+  clean_data_df %>% select(any_of(c("mgi_gene_id", "mouse_gene_symbol"))),
+  bespoke_task_table_df %>% select(any_of(c("mgi_gene_id", "mouse_gene_symbol"))),
+  disease_clean_df %>% select(any_of(c("mgi_gene_id", "mouse_gene_symbol")))
+) %>%
+  filter(!is.na(mgi_gene_id)) %>%
+  group_by(mgi_gene_id) %>%
+  summarise(
+    mouse_gene_symbol = dplyr::first(na.omit(mouse_gene_symbol)),
+    .groups = "drop"
+  )
+
+mp_terms_df <- bespoke_task_mp_bridge_df %>%
+  filter(!is.na(mp_term_id)) %>%
+  distinct(mp_term_id) %>%
+  mutate(mp_term_name = NA_character_)
+
+human_diseases_df <- disease_clean_df %>%
+  filter(!is.na(doid)) %>%
+  group_by(doid) %>%
+  summarise(
+    disease_name = dplyr::first(na.omit(disease_name)),
+    .groups = "drop"
+  )
+
+chrom2_gene_df <- chrom2_df %>%
+  filter(!is.na(ensembl_gene_id)) %>%
+  group_by(ensembl_gene_id) %>%
+  summarise(
+    gene_name = dplyr::first(na.omit(gene_name)),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    mgi_gene_id       = NA_character_,
+    mouse_gene_symbol = NA_character_
+  )
+
+chrom2_transcript_df <- chrom2_df %>%
+  filter(!is.na(ensembl_transcript_id), !is.na(ensembl_gene_id)) %>%
+  distinct(ensembl_transcript_id, ensembl_gene_id)
+
+# 6. Helper to append matching columns in chunks
+write_to_db <- function(con, table_name, df, chunk_size = 50000) {
+  db_cols <- dbListFields(con, table_name)
+  df_sub  <- df %>% select(any_of(db_cols))
+  
+  n <- nrow(df_sub)
+  if (n == 0) {
+    message("0 rows for ", table_name, " -> skipped")
+    return(invisible(NULL))
+  }
+  
+  chunks <- split(seq_len(n), ceiling(seq_len(n) / chunk_size))
+  for (idx in chunks) {
+    dbWriteTable(
+      conn      = con,
+      name      = table_name,
+      value     = df_sub[idx, , drop = FALSE],
+      append    = TRUE,
+      overwrite = FALSE,
+      row.names = FALSE
+    )
+  }
+  message("Loaded ", n, " rows into ", table_name)
+}
+
+# 7. Insert in foreign-key dependency order
+write_to_db(con, "mouse_gene", mouse_gene_df)
+write_to_db(con, "procedures", procedures_df)
+
+names(procedures_df)
+head(procedures_df, 5)
+dbGetQuery(con, "DESCRIBE procedures;")
+names(impc_parameters_df)
+dbGetQuery(con, "DESCRIBE IMPC_parameters;")
+procedures_df <- procedures_df %>%
+  mutate(
+    procedure_code = paste0("PROC_", dplyr::row_number()),
+    is_mandatory   = as.integer(is_mandatory)
+  )
+
+# Ensure parameter_name is non-missing (required NOT NULL in IMPC_parameters)
+impc_parameters_clean_df <- impc_parameters_df %>%
+  mutate(
+    parameter_name = dplyr::coalesce(parameter_name, parameter_stable_id)
+  ) %>%
+  filter(!is.na(parameter_stable_id), !is.na(parameter_name)) %>%
+  distinct(parameter_stable_id, .keep_all = TRUE)
+
+write_to_db(con, "procedures", procedures_df)
+write_to_db(con, "IMPC_parameters", impc_parameters_clean_df)
+
+write_to_db(con, "IMPC_parameters", impc_parameters_df) #duplicate entry 
+#inspect
+impc_parameters_df %>%
+  filter(!is.na(parameter_stable_id)) %>%
+  count(parameter_stable_id, sort = TRUE) %>%
+  filter(n > 1)
+
+# Remove the duplication
+dbExecute(con, "SET FOREIGN_KEY_CHECKS = 0;")
+dbExecute(con, "TRUNCATE TABLE IMPC_parameters;")
+dbExecute(con, "SET FOREIGN_KEY_CHECKS = 1;")
+impc_parameters_clean_df <- impc_parameters_df %>%
+  filter(!is.na(parameter_stable_id)) %>%
+  mutate(
+    parameter_name = dplyr::coalesce(parameter_name, parameter_stable_id)
+  ) %>%
+  filter(!is.na(parameter_name)) %>%
+  group_by(parameter_stable_id) %>%
+  summarise(
+    parameter_name         = dplyr::first(na.omit(parameter_name)),
+    parameter_description    = dplyr::first(na.omit(parameter_description)),
+    impc_parameter_orig_id = dplyr::first(na.omit(impc_parameter_orig_id)),
+    .groups = "drop"
+  )
+
+write_to_db(con, "IMPC_parameters", impc_parameters_clean_df)
+
+
+write_to_db(con, "mp_terms", mp_terms_df)
+write_to_db(con, "human_diseases", human_diseases_df)
+write_to_db(con, "chrom2_gene", chrom2_gene_df)
+write_to_db(con, "chrom2_transcript", chrom2_transcript_df)
+
+
+# Load child and bridge tables
+write_to_db(con, "clean_data", clean_data_df)
+existing_params <- dbGetQuery(con, "SELECT parameter_stable_id FROM IMPC_parameters;")$parameter_stable_id
+missing_params <- clean_data_df %>%
+  filter(!is.na(parameter_stable_id), !(parameter_stable_id %in% existing_params)) %>%
+  distinct(parameter_stable_id, parameter_name)
+
+nrow(missing_params)
+head(missing_params, 20) #following code will add missing params
+if (nrow(missing_params) > 0) {
+  extra_param_df <- missing_params %>%
+    mutate(
+      parameter_name         = dplyr::coalesce(parameter_name, parameter_stable_id),
+      parameter_description    = NA_character_,
+      impc_parameter_orig_id = NA_real_
+    ) %>%
+    filter(!is.na(parameter_stable_id), !is.na(parameter_name)) %>%
+    group_by(parameter_stable_id) %>%
+    summarise(
+      parameter_name         = dplyr::first(na.omit(parameter_name)),
+      parameter_description    = dplyr::first(na.omit(parameter_description)),
+      impc_parameter_orig_id = dplyr::first(na.omit(impc_parameter_orig_id)),
+      .groups = "drop"
+    )
+  
+  write_to_db(con, "IMPC_parameters", extra_param_df)
+}
+
+write_to_db(con, "clean_data", clean_data_df)
+
+write_to_db(con, "lacz_expression", lacz_expression_df)
+write_to_db(con, "bespoke_task_table", bespoke_task_table_df)
+write_to_db(con, "bespoke_task_mp_bridge", bespoke_task_mp_bridge_df)
+write_to_db(con, "disease_clean", disease_clean_df)
+write_to_db(con, "genotype_bridge", genotype_bridge_df)
+write_to_db(con, "chrom2", chrom2_df)
+
+
+# Verify row counts 
+
+tables <- c(
+  "mouse_gene", "procedures", "IMPC_parameters", "mp_terms",
+  "human_diseases", "chrom2_gene", "chrom2_transcript",
+  "clean_data", "lacz_expression", "bespoke_task_table",
+  "bespoke_task_mp_bridge", "disease_clean", "genotype_bridge",
+  "chrom2", "parameter_group", "parameter_group_member",
+  "parameter_group_external_data"
+)
+
+row_counts <- purrr::map_dfr(tables, function(tbl) {
+  n <- tryCatch(
+    dbGetQuery(con, paste0("SELECT COUNT(*) AS n FROM `", tbl, "`;"))$n,
+    error = function(e) NA_integer_
+  )
+  tibble::tibble(table_name = tbl, row_count = n)
+})
+
+print(row_counts, n = Inf)
+
+
+
+# Populate paramater_group
+dbGetQuery(con, "SELECT * FROM parameter_group;")
+dbGetQuery(con, "DESCRIBE parameter_group_member;")
+
+library(dplyr)
+library(purrr)
+
+params_df <- dbGetQuery(con, "
+  SELECT parameter_stable_id, parameter_name, parameter_description
+  FROM IMPC_parameters;
+") %>%
+  mutate(
+    search_text = tolower(paste(
+      dplyr::coalesce(parameter_name, ""),
+      dplyr::coalesce(parameter_description, "")
+    ))
+  )
+
+group_patterns <- tibble::tribble(
+  ~group_id, ~pattern,
+  1L, "body weight|weight|lean mass|fat mass|adipose|tissue weight|organ weight|spleen weight|heart weight|brain weight",
+  2L, "image|imaging|x-ray|xray|radiograph|morphology|shape|size|area|length|width|eye|lens|retina|ear|limb|paw|digit|rib|vertebra",
+  3L, "brain|cortex|hippocampus|cerebellum|ventricle|amygdala|striatum|thalamus|hypothalamus|olfactory|neuro|neural",
+  4L, "leukocyte|lymphocyte|neutrophil|monocyte|eosinophil|basophil|erythrocyte|red blood|platelet|haemoglobin|hemoglobin|hematocrit|spleen|thymus|cd4|cd8|b cell|t cell|nk cell|immun|white blood",
+  5L, "open field|grip|rotarod|acoustic|startle|habituation|anxiety|locomotor|explor|behav|gait|activity|sleep|light-dark|fear",
+  6L, "glucose|insulin|cholesterol|triglyceride|hdl|ldl|albumin|urea|creatinine|alanine|aspartate|alkaline phosphatase|bilirubin|protein|electrolyte|calcium|sodium|potassium|lipid|metabol|clinical chemistry"
+)
+
+members_df <- map_dfr(seq_len(nrow(group_patterns)), function(i) {
+  gid <- group_patterns$group_id[i]
+  pat <- group_patterns$pattern[i]
+  
+  params_df %>%
+    filter(!is.na(parameter_stable_id), grepl(pat, search_text, perl = TRUE)) %>%
+    distinct(parameter_stable_id) %>%
+    mutate(group_id = gid)
+}) %>%
+  select(group_id, parameter_stable_id) %>%
+  distinct()
+
+# Clear any partial rows and insert
+dbExecute(con, "DELETE FROM parameter_group_member;")
+write_to_db(con, "parameter_group_member", members_df)
+
+
+```
+
+# Save snapshot of database using Bash
+
+```{bash}
+/usr/local/mysql/bin/mysqldump -h 127.0.0.1 -P 3306 -u root -p \
+  --single-transaction \
+  data_base_merged > data_base_merged_snapshot.sql
+```
+
+### Inspect the snapshot
+
+```{bash}
+ls -lh data_base_merged_snapshot.sql # Inspect file permissions, owner, timestamp, file size
+```
+
+```{bash}
+head -n 20 data_base_merged_snapshot.sql # Prints the first 20 lines of the dump file
+```
+
+```{bash}
+tail -n 15 data_base_merged_snapshot.sql # Prints the last 15 lines of the file to confirm the dump completed cleanly to its footer
+```
+
+# Now we need to verify the relationships 
+
+```{sql connection=}
+USE data_base_merged;
+
+SELECT
+  COUNT(*) AS total_clean_rows,
+  COUNT(l.result_id) AS matched_lacz,
+  COUNT(g.mgi_gene_id) AS matched_gene,
+  COUNT(p.parameter_stable_id) AS matched_param
+FROM clean_data c
+LEFT JOIN lacz_expression l ON c.result_id = l.result_id
+LEFT JOIN mouse_gene g ON c.mgi_gene_id = g.mgi_gene_id
+LEFT JOIN IMPC_parameters p ON c.parameter_stable_id = p.parameter_stable_id;
+
+SELECT
+  COUNT(*) AS total_bridge_rows,
+  COUNT(b.bespoke_row_id) AS matched_bespoke,
+  COUNT(m.mp_term_id) AS matched_mp_term
+FROM bespoke_task_mp_bridge bmp
+LEFT JOIN bespoke_task_table b ON bmp.bespoke_row_id = b.bespoke_row_id
+LEFT JOIN mp_terms m ON bmp.mp_term_id = m.mp_term_id;
+
+SELECT
+  COUNT(*) AS total_chrom2_rows,
+  COUNT(t.ensembl_transcript_id) AS matched_transcript,
+  COUNT(cg.ensembl_gene_id) AS matched_chrom2_gene
+FROM chrom2 c2
+LEFT JOIN chrom2_transcript t ON c2.ensembl_transcript_id = t.ensembl_transcript_id
+LEFT JOIN chrom2_gene cg ON c2.ensembl_gene_id = cg.ensembl_gene_id;
+
+-- Inspect 70 unmatched data rows 
+
+SELECT
+  COUNT(*) AS total_unmatched,
+  SUM(CASE WHEN c.parameter_stable_id IS NULL THEN 1 ELSE 0 END) AS null_param_id,
+  SUM(CASE WHEN c.parameter_stable_id IS NOT NULL THEN 1 ELSE 0 END) AS non_null_unmatched_id
+FROM clean_data c
+LEFT JOIN IMPC_parameters p ON c.parameter_stable_id = p.parameter_stable_id
+WHERE p.parameter_stable_id IS NULL;
+
+-- Result: 70 unmatched rows total, all 70 have NULL parameter_stable_id, and 0 have an unmapped ID.
+
+-- Foreign key links are clean !
+
+-- Import was successful 
+
+
+-- Parameter_group needs to be populated for our 6 rows
+
+SELECT
+  pg.group_id,
+  pg.group_name,
+  COUNT(pgm.parameter_stable_id) AS n_parameters
+FROM parameter_group pg
+LEFT JOIN parameter_group_member pgm
+  ON pg.group_id = pgm.group_id
+GROUP BY pg.group_id, pg.group_name
+ORDER BY pg.group_id;
+
+```
+
+# Running the Query 
+
+For this coursework we ran 6 queries to view the exploratory nature of our database
+
+## Inspect the tables quickly
+
+```{sql connection=}
+USE data_base_merged;
+
+SHOW TABLES;  -- inspect the table columns 
+
+SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'data_base_merged'
+  AND TABLE_NAME IN (
+    'clean_data', 'lacz_expression', 'IMPC_parameters', 'parameter_group',
+    'parameter_group_member', 'bespoke_task_table', 'bespoke_task_mp_bridge',
+    'mp_terms', 'disease_clean', 'genotype_bridge', 'human_diseases',
+    'chrom2_gene', 'chrom2_transcript', 'chrom2'
+  )
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+
+```
+
+## Query 1
+
+Gene-Level Overall Phenotype, LacZ Expression & Chromosome 2 Summary
+
+Summarises each target gene into a single overview row
+
+First we need to determine which 4 genes to use as the prompt suggests 4 genes for the collaborator
+
+```{r}
+library(readr)
+library(dplyr)
+
+q_genes <- read_csv("../../group14_query_genes.csv", show_col_types = FALSE)
+names(q_genes)
+print(q_genes)
+
+# Pull non-missing gene symbol values (adjust column name if it differs)
+gene_symbols <- q_genes %>%
+  pull(1) %>%
+  na.omit() %>%
+  unique()
+
+gene_symbols # choose the ones displayed here
+```
+
+4 genes of interest = Rhbdl2, Scx, Muc5ac and Parpbp
+
+Lets query now
+
+```{sql connection=}
+
+SELECT
+  c.mouse_gene_symbol,
+  c.mgi_gene_id,
+  COUNT(DISTINCT c.result_id) AS grouped_tests,
+  COUNT(DISTINCT pg.group_id) AS groups_tested,
+  SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) AS significant_hits,
+  MIN(c.p_value) AS min_p_value,
+  -LOG10(GREATEST(MIN(c.p_value), 1e-300)) AS neg_log10_min_p,
+  COUNT(DISTINCT l.result_id) AS lacz_linked_records,
+  MAX(b.in_impc_dataset) AS in_bespoke_impc_overlap,
+  COUNT(DISTINCT c2.ensembl_exon_id) AS chrom2_exons
+FROM data_base_merged.clean_data c
+INNER JOIN data_base_merged.parameter_group_member pgm
+  ON c.parameter_stable_id = pgm.parameter_stable_id
+INNER JOIN data_base_merged.parameter_group pg
+  ON pgm.group_id = pg.group_id
+LEFT JOIN data_base_merged.lacz_expression l
+  ON c.result_id = l.result_id
+LEFT JOIN data_base_merged.bespoke_task_table b
+  ON c.mgi_gene_id = b.mgi_gene_id
+LEFT JOIN data_base_merged.chrom2_gene cg
+  ON c.mgi_gene_id = cg.mgi_gene_id
+LEFT JOIN data_base_merged.chrom2_transcript ct
+  ON cg.ensembl_gene_id = ct.ensembl_gene_id
+LEFT JOIN data_base_merged.chrom2 c2
+  ON ct.ensembl_transcript_id = c2.ensembl_transcript_id
+WHERE c.mouse_gene_symbol IN ('Rhbdl2', 'Scx', 'Muc5ac', 'Parpbp')
+  AND c.p_value IS NOT NULL
+GROUP BY
+  c.mouse_gene_symbol,
+  c.mgi_gene_id
+ORDER BY
+  significant_hits DESC,
+  min_p_value ASC;
+```
+
+Output:
+
+![](images/clipboard-2864696872.png)
+
+## Query 2
+
+Gene and Parameter Group Summary
+
+Aggregates test counts, significant hits, minimum p-value, negative log10 p-value, bespoke task overlap, and chromosome 2 exon counts per gene and parameter group.
+
+```{sql connection=}
+
+SELECT
+  c.mouse_gene_symbol,
+  c.mgi_gene_id,
+  pg.group_name AS parameter_group,
+  COUNT(DISTINCT c.result_id) AS total_tests,
+  SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) AS significant_hits,
+  MIN(c.p_value) AS min_p_value,
+  -LOG10(GREATEST(MIN(c.p_value), 1e-300)) AS neg_log10_min_p,
+  MAX(b.in_impc_dataset) AS in_bespoke_impc_overlap,
+  COUNT(DISTINCT c2.ensembl_exon_id) AS chrom2_exons
+FROM data_base_merged.clean_data c
+INNER JOIN data_base_merged.parameter_group_member pgm
+  ON c.parameter_stable_id = pgm.parameter_stable_id
+INNER JOIN data_base_merged.parameter_group pg
+  ON pgm.group_id = pg.group_id
+LEFT JOIN data_base_merged.bespoke_task_table b
+  ON c.mgi_gene_id = b.mgi_gene_id
+LEFT JOIN data_base_merged.chrom2_gene cg
+  ON c.mgi_gene_id = cg.mgi_gene_id
+LEFT JOIN data_base_merged.chrom2_transcript ct
+  ON cg.ensembl_gene_id = ct.ensembl_gene_id
+LEFT JOIN data_base_merged.chrom2 c2
+  ON ct.ensembl_transcript_id = c2.ensembl_transcript_id
+WHERE c.mouse_gene_symbol IN ('Rhbdl2', 'Scx', 'Muc5ac', 'Parpbp')
+  AND c.p_value IS NOT NULL
+GROUP BY
+  c.mouse_gene_symbol,
+  c.mgi_gene_id,
+  pg.group_name
+ORDER BY
+  c.mouse_gene_symbol,
+  min_p_value ASC;
+
+```
+
+Output:
+
+![](images/clipboard-904073537.png)
+
+## Query 3
+
+Life stage and parameter group hit rate breakdown
+
+Breaks down each target gene across life stage and parameter group with normalized hit_rate (significant_hits / total_tests) to compare signal density across groups and developmental stages.
+
+```{sql connection=}
+SELECT
+  c.mouse_gene_symbol,
+  c.mgi_gene_id,
+  COALESCE(c.mouse_life_stage, 'Unspecified') AS life_stage,
+  pg.group_name AS parameter_group,
+  COUNT(DISTINCT c.result_id) AS total_tests,
+  SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) AS significant_hits,
+  ROUND(
+    SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) / COUNT(DISTINCT c.result_id),
+    4
+  ) AS hit_rate,
+  MIN(c.p_value) AS min_p_value,
+  -LOG10(GREATEST(MIN(c.p_value), 1e-300)) AS neg_log10_min_p
+FROM data_base_merged.clean_data c
+INNER JOIN data_base_merged.parameter_group_member pgm
+  ON c.parameter_stable_id = pgm.parameter_stable_id
+INNER JOIN data_base_merged.parameter_group pg
+  ON pgm.group_id = pg.group_id
+WHERE c.mouse_gene_symbol IN ('Rhbdl2', 'Scx', 'Muc5ac', 'Parpbp')
+  AND c.p_value IS NOT NULL
+GROUP BY
+  c.mouse_gene_symbol,
+  c.mgi_gene_id,
+  life_stage,
+  pg.group_name
+ORDER BY
+  c.mouse_gene_symbol,
+  life_stage,
+  hit_rate DESC,
+  min_p_value ASC;
+```
+
+Output:
+
+![](images/clipboard-3416621647.png)
+
+## Query 4
+
+Ranked IMPC 6-Group Phenotype, Human Disease, Bespoke MP, Tissue LacZ & Chromosome 2 Profile (Rhbdl2, Scx, Muc5ac, Parpbp)
+
+```{sql connection=}
+
+SELECT COLUMN_NAME, DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'data_base_merged'
+  AND TABLE_NAME IN ('genotype_bridge', 'disease_clean', 'human_diseases', 'bespoke_task_table', 'bespoke_task_mp_bridge', 'mp_terms', 'lacz_expression')
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+
+
+WITH target_genes AS (
+  SELECT DISTINCT
+    c.mouse_gene_symbol,
+    c.mgi_gene_id
+  FROM data_base_merged.clean_data c
+  WHERE c.mouse_gene_symbol IN ('Rhbdl2', 'Scx', 'Muc5ac', 'Parpbp')
+    AND c.mgi_gene_id IS NOT NULL
+),
+disease_summary AS (
+  SELECT
+    tg.mgi_gene_id,
+    COUNT(DISTINCT dc.disease_row_id) AS n_disease_rows,
+    COUNT(DISTINCT gb.mouse_genotype_id) AS n_bridged_genotypes,
+    GROUP_CONCAT(
+      DISTINCT CONCAT(dc.doid, ': ', COALESCE(hd.disease_name, dc.disease_name))
+      ORDER BY dc.doid
+      SEPARATOR '; '
+    ) AS diseases
+  FROM target_genes tg
+  INNER JOIN data_base_merged.disease_clean dc
+    ON tg.mgi_gene_id = dc.mgi_gene_id
+  LEFT JOIN data_base_merged.human_diseases hd
+    ON dc.doid = hd.doid
+  LEFT JOIN data_base_merged.genotype_bridge gb
+    ON dc.disease_row_id = gb.disease_row_id
+  GROUP BY tg.mgi_gene_id
+),
+bespoke_summary AS (
+  SELECT
+    b.mgi_gene_id,
+    COUNT(DISTINCT b.bespoke_row_id) AS n_bespoke_rows,
+    MAX(b.in_impc_dataset) AS in_impc_dataset,
+    GROUP_CONCAT(DISTINCT b.hp_term_name ORDER BY b.hp_term_name SEPARATOR '; ') AS hp_terms,
+    GROUP_CONCAT(
+      DISTINCT CONCAT(bmp.mp_term_id, ' (', COALESCE(mt.mp_term_name, 'unnamed'), ')')
+      ORDER BY bmp.mp_term_id
+      SEPARATOR '; '
+    ) AS bespoke_mp_terms
+  FROM data_base_merged.bespoke_task_table b
+  LEFT JOIN data_base_merged.bespoke_task_mp_bridge bmp
+    ON b.bespoke_row_id = bmp.bespoke_row_id
+  LEFT JOIN data_base_merged.mp_terms mt
+    ON bmp.mp_term_id = mt.mp_term_id
+  GROUP BY b.mgi_gene_id
+),
+lacz_summary AS (
+  SELECT
+    c.mgi_gene_id,
+    COUNT(DISTINCT l.result_id) AS lacz_result_rows,
+    SUM(CASE WHEN l.lacz_brain IS NOT NULL AND l.lacz_brain != '' THEN 1 ELSE 0 END) AS lacz_brain_n,
+    SUM(CASE WHEN l.lacz_heart IS NOT NULL AND l.lacz_heart != '' THEN 1 ELSE 0 END) AS lacz_heart_n,
+    SUM(CASE WHEN l.lacz_liver IS NOT NULL AND l.lacz_liver != '' THEN 1 ELSE 0 END) AS lacz_liver_n,
+    SUM(CASE WHEN l.lacz_lung IS NOT NULL AND l.lacz_lung != '' THEN 1 ELSE 0 END) AS lacz_lung_n,
+    SUM(CASE WHEN l.lacz_kidney IS NOT NULL AND l.lacz_kidney != '' THEN 1 ELSE 0 END) AS lacz_kidney_n,
+    SUM(CASE WHEN l.lacz_skin IS NOT NULL AND l.lacz_skin != '' THEN 1 ELSE 0 END) AS lacz_skin_n,
+    SUM(CASE WHEN l.lacz_skeletal_muscle IS NOT NULL AND l.lacz_skeletal_muscle != '' THEN 1 ELSE 0 END) AS lacz_muscle_n,
+    SUM(CASE WHEN l.lacz_eye IS NOT NULL AND l.lacz_eye != '' THEN 1 ELSE 0 END) AS lacz_eye_n,
+    SUM(CASE WHEN l.lacz_colon IS NOT NULL AND l.lacz_colon != '' THEN 1 ELSE 0 END) AS lacz_colon_n,
+    SUM(CASE WHEN l.lacz_blood IS NOT NULL AND l.lacz_blood != '' THEN 1 ELSE 0 END) AS lacz_blood_n,
+    SUM(CASE WHEN l.lacz_vascular_system IS NOT NULL AND l.lacz_vascular_system != '' THEN 1 ELSE 0 END) AS lacz_vascular_n
+  FROM data_base_merged.clean_data c
+  INNER JOIN data_base_merged.lacz_expression l
+    ON c.result_id = l.result_id
+  WHERE c.mouse_gene_symbol IN ('Rhbdl2', 'Scx', 'Muc5ac', 'Parpbp')
+  GROUP BY c.mgi_gene_id
+),
+chrom2_summary AS (
+  SELECT
+    cg.mgi_gene_id,
+    COUNT(DISTINCT ct.ensembl_transcript_id) AS chrom2_transcripts,
+    COUNT(DISTINCT c2.ensembl_exon_id) AS chrom2_exons
+  FROM data_base_merged.chrom2_gene cg
+  LEFT JOIN data_base_merged.chrom2_transcript ct
+    ON cg.ensembl_gene_id = ct.ensembl_gene_id
+  LEFT JOIN data_base_merged.chrom2 c2
+    ON ct.ensembl_transcript_id = c2.ensembl_transcript_id
+  GROUP BY cg.mgi_gene_id
+),
+phenotype_summary AS (
+  SELECT
+    c.mgi_gene_id,
+    COUNT(DISTINCT c.result_id) AS grouped_tests,
+    COUNT(DISTINCT pg.group_id) AS groups_tested,
+    SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) AS sig_hits,
+    ROUND(
+      SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT c.result_id), 0),
+      4
+    ) AS hit_rate,
+    MIN(c.p_value) AS min_p_value,
+    ROUND(-LOG10(GREATEST(MIN(c.p_value), 1e-300)), 2) AS neg_log10_min_p
+  FROM data_base_merged.clean_data c
+  INNER JOIN data_base_merged.parameter_group_member pgm
+    ON c.parameter_stable_id = pgm.parameter_stable_id
+  INNER JOIN data_base_merged.parameter_group pg
+    ON pgm.group_id = pg.group_id
+  WHERE c.p_value IS NOT NULL
+  GROUP BY c.mgi_gene_id
+)
+SELECT
+  DENSE_RANK() OVER (ORDER BY COALESCE(ps.sig_hits, 0) DESC, ps.min_p_value ASC) AS cohort_rank,
+  tg.mouse_gene_symbol,
+  tg.mgi_gene_id,
+  COALESCE(ps.grouped_tests, 0) AS grouped_tests,
+  COALESCE(ps.groups_tested, 0) AS groups_tested,
+  COALESCE(ps.sig_hits, 0) AS sig_hits,
+  COALESCE(ps.hit_rate, 0) AS hit_rate,
+  ps.min_p_value,
+  ps.neg_log10_min_p,
+  COALESCE(ds.n_disease_rows, 0) AS n_disease_rows,
+  COALESCE(ds.n_bridged_genotypes, 0) AS n_bridged_genotypes,
+  ds.diseases,
+  COALESCE(bs.n_bespoke_rows, 0) AS n_bespoke_rows,
+  COALESCE(bs.in_impc_dataset, 0) AS in_impc_dataset,
+  bs.hp_terms,
+  bs.bespoke_mp_terms,
+  COALESCE(ls.lacz_result_rows, 0) AS lacz_result_rows,
+  COALESCE(ls.lacz_brain_n, 0) AS lacz_brain_n,
+  COALESCE(ls.lacz_heart_n, 0) AS lacz_heart_n,
+  COALESCE(ls.lacz_liver_n, 0) AS lacz_liver_n,
+  COALESCE(ls.lacz_lung_n, 0) AS lacz_lung_n,
+  COALESCE(ls.lacz_kidney_n, 0) AS lacz_kidney_n,
+  COALESCE(ls.lacz_skin_n, 0) AS lacz_skin_n,
+  COALESCE(ls.lacz_muscle_n, 0) AS lacz_muscle_n,
+  COALESCE(ls.lacz_eye_n, 0) AS lacz_eye_n,
+  COALESCE(ls.lacz_colon_n, 0) AS lacz_colon_n,
+  COALESCE(ls.lacz_blood_n, 0) AS lacz_blood_n,
+  COALESCE(ls.lacz_vascular_n, 0) AS lacz_vascular_n,
+  COALESCE(c2s.chrom2_transcripts, 0) AS chrom2_transcripts,
+  COALESCE(c2s.chrom2_exons, 0) AS chrom2_exons
+FROM target_genes tg
+LEFT JOIN phenotype_summary ps
+  ON tg.mgi_gene_id = ps.mgi_gene_id
+LEFT JOIN disease_summary ds
+  ON tg.mgi_gene_id = ds.mgi_gene_id
+LEFT JOIN bespoke_summary bs
+  ON tg.mgi_gene_id = bs.mgi_gene_id
+LEFT JOIN lacz_summary ls
+  ON tg.mgi_gene_id = ls.mgi_gene_id
+LEFT JOIN chrom2_summary c2s
+  ON tg.mgi_gene_id = c2s.mgi_gene_id
+ORDER BY cohort_rank, tg.mouse_gene_symbol;
+
+```
+
+Output:
+
+Part 1:
+
+![](images/clipboard-1568580303.png)
+
+Part 2:
+
+![](images/clipboard-3722303865.png)
+
+## Query 5
+
+Cohort-wide top-genes query (top 5 per parameter group across your 6 groups) that pre-aggregates the disease links (disease_clean, human_diseases, genotype_bridge) and bespoke task / Mammalian Phenotype links (bespoke_task_table, bespoke_task_mp_bridge, mp_terms
+
+```{sql connection=}
+WITH gene_group_stats AS (
+  SELECT
+    pg.group_id,
+    pg.group_name AS parameter_group,
+    c.mouse_gene_symbol,
+    c.mgi_gene_id,
+    COUNT(DISTINCT c.result_id) AS total_tests,
+    SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) AS sig_hits,
+    ROUND(
+      SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT c.result_id), 0),
+      4
+    ) AS hit_rate,
+    MIN(c.p_value) AS min_p_value,
+    ROUND(-LOG10(GREATEST(MIN(c.p_value), 1e-300)), 2) AS neg_log10_min_p
+  FROM data_base_merged.clean_data c
+  INNER JOIN data_base_merged.parameter_group_member pgm
+    ON c.parameter_stable_id = pgm.parameter_stable_id
+  INNER JOIN data_base_merged.parameter_group pg
+    ON pgm.group_id = pg.group_id
+  WHERE c.mouse_gene_symbol IS NOT NULL
+    AND c.mgi_gene_id IS NOT NULL
+    AND c.p_value IS NOT NULL
+  GROUP BY
+    pg.group_id,
+    pg.group_name,
+    c.mouse_gene_symbol,
+    c.mgi_gene_id
+),
+top5_by_group AS (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY group_id
+      ORDER BY sig_hits DESC, min_p_value ASC, mouse_gene_symbol ASC
+    ) AS group_gene_rank
+  FROM gene_group_stats
+),
+top_genes AS (
+  SELECT DISTINCT
+    mgi_gene_id
+  FROM top5_by_group
+  WHERE group_gene_rank <= 5
+),
+disease_agg AS (
+  SELECT
+    dc.mgi_gene_id,
+    COUNT(DISTINCT dc.doid) AS n_diseases,
+    COUNT(DISTINCT gb.mouse_genotype_id) AS n_bridged_genotypes,
+    GROUP_CONCAT(
+      DISTINCT CONCAT(dc.doid, ': ', COALESCE(hd.disease_name, dc.disease_name))
+      ORDER BY dc.doid
+      SEPARATOR '; '
+    ) AS diseases
+  FROM top_genes tg
+  INNER JOIN data_base_merged.disease_clean dc
+    ON tg.mgi_gene_id = dc.mgi_gene_id
+  LEFT JOIN data_base_merged.human_diseases hd
+    ON dc.doid = hd.doid
+  LEFT JOIN data_base_merged.genotype_bridge gb
+    ON dc.disease_row_id = gb.disease_row_id
+  GROUP BY dc.mgi_gene_id
+),
+bespoke_agg AS (
+  SELECT
+    b.mgi_gene_id,
+    MAX(COALESCE(b.in_impc_dataset, 0)) AS in_impc_dataset,
+    COUNT(DISTINCT bmp.mp_term_id) AS n_bespoke_mp_terms,
+    GROUP_CONCAT(
+      DISTINCT CONCAT(bmp.mp_term_id, ' (', COALESCE(mt.mp_term_name, 'unmapped'), ')')
+      ORDER BY bmp.mp_term_id
+      SEPARATOR '; '
+    ) AS bespoke_mp_terms
+  FROM top_genes tg
+  INNER JOIN data_base_merged.bespoke_task_table b
+    ON tg.mgi_gene_id = b.mgi_gene_id
+  LEFT JOIN data_base_merged.bespoke_task_mp_bridge bmp
+    ON b.bespoke_row_id = bmp.bespoke_row_id
+  LEFT JOIN data_base_merged.mp_terms mt
+    ON bmp.mp_term_id = mt.mp_term_id
+  GROUP BY b.mgi_gene_id
+)
+SELECT
+  t.parameter_group,
+  t.group_gene_rank,
+  t.mouse_gene_symbol,
+  t.mgi_gene_id,
+  t.total_tests,
+  t.sig_hits,
+  t.hit_rate,
+  t.min_p_value,
+  t.neg_log10_min_p,
+  COALESCE(d.n_diseases, 0) AS n_diseases,
+  COALESCE(d.n_bridged_genotypes, 0) AS n_bridged_genotypes,
+  d.diseases,
+  COALESCE(b.in_impc_dataset, 0) AS in_impc_dataset,
+  COALESCE(b.n_bespoke_mp_terms, 0) AS n_bespoke_mp_terms,
+  b.bespoke_mp_terms
+FROM top5_by_group t
+LEFT JOIN disease_agg d
+  ON t.mgi_gene_id = d.mgi_gene_id
+LEFT JOIN bespoke_agg b
+  ON t.mgi_gene_id = b.mgi_gene_id
+WHERE t.group_gene_rank <= 5
+ORDER BY t.parameter_group, t.group_gene_rank;
+
+```
+
+Output:
+
+Will only include snapshots of different parameter_groups as the file is too big
+
+![](images/clipboard-709970014.png)
+
+![](images/clipboard-1398838606.png)
+
+## Query 6
+
+Chromosome 2 Transcript & Exon Lookup for Four Chromosome 2 Genes
+
+First pick 4 genes that are evident in chromosome 2
+
+```{sql connection=}
+SELECT * FROM data_base_merged.chrom2_gene LIMIT 5;
+SELECT * FROM data_base_merged.chrom2_transcript LIMIT 5;
+SELECT * FROM data_base_merged.chrom2 LIMIT 5;
+```
+
+Query our chosen genes - Gpr107 Lhx2 Cdh4 Ckmt1
+
+```{sql connection=}
+WITH target_chr2_genes AS (
+  SELECT DISTINCT
+    cg.gene_name,
+    cg.ensembl_gene_id
+  FROM data_base_merged.chrom2_gene cg
+  WHERE cg.gene_name IN ('Gpr107', 'Lhx2', 'Cdh4', 'Ckmt1')
+),
+chrom2_chain AS (
+  SELECT
+    tg.gene_name,
+    tg.ensembl_gene_id,
+    ct.ensembl_transcript_id,
+    c2.ensembl_exon_id
+  FROM target_chr2_genes tg
+  LEFT JOIN data_base_merged.chrom2_transcript ct
+    ON tg.ensembl_gene_id = ct.ensembl_gene_id
+  LEFT JOIN data_base_merged.chrom2 c2
+    ON ct.ensembl_transcript_id = c2.ensembl_transcript_id
+)
+SELECT
+  gene_name,
+  ensembl_gene_id,
+  COUNT(DISTINCT ensembl_transcript_id) AS chrom2_transcripts,
+  COUNT(DISTINCT ensembl_exon_id) AS chrom2_exons,
+  GROUP_CONCAT(DISTINCT ensembl_transcript_id ORDER BY ensembl_transcript_id SEPARATOR ', ') AS transcript_ids,
+  SUM(COUNT(DISTINCT ensembl_exon_id)) OVER () AS total_selected_chr2_exons
+FROM chrom2_chain
+GROUP BY
+  gene_name,
+  ensembl_gene_id
+ORDER BY
+  chrom2_exons DESC,
+  gene_name ASC;
+
+```
+
+# Query is complete 
+
+Next steps...
+
+R Shiny Development
