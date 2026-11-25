@@ -1,25 +1,11 @@
 #Phenotype analysis results exported from the Group 14 R Shiny dashboard.
+## MySQL Database Validation
 
-This folder contains phenotype analysis results exported from the Group 14 R Shiny Gene Explorer for five genes:
+The five coursework genes (Grk5, Rhbdl2, Scx, Muc5ac and Parpbp) can be checked in the `data_base_merged` MySQL database using DBeaver before comparing the results with R Shiny.
 
-Grk5
+Run the following SQL query to identify the available knockout models and their analysis record counts:
 
-Rhbdl2
-
-Scx
-
-Muc5ac
-
-Parpbp
-
-The CSV files contain analysis records downloaded from the R Shiny application.
-
-Checking the Results in MySQL
-
-The database is named data_base_merged.
-
-Open DBeaver, connect to the MySQL database and run the following SQL query to identify the available knockout models and their analysis record counts:
-
+```sql
 USE data_base_merged;
 
 SELECT
@@ -43,5 +29,8 @@ ORDER BY
     gene_symbol,
     allele_symbol,
     strain_name;
+```
 
-The query lists the gene symbol, allele, strain and number of analysis records for each available knockout model.
+The query returns the gene, allele, strain and total number of analysis records for each knockout model.
+
+In the R Shiny **Gene Explorer**, select the same gene and knockout model, then choose **All results**. The displayed **Analysis records** count should match the corresponding MySQL query result.
