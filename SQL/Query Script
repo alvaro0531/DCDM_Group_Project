@@ -1,0 +1,426 @@
+-- SQL query script 
+
+USE data_base_merged;
+
+SHOW TABLES;  -- inspect the table columns 
+
+SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'data_base_merged'
+  AND TABLE_NAME IN (
+    'clean_data', 'lacz_expression', 'IMPC_parameters', 'parameter_group',
+    'parameter_group_member', 'bespoke_task_table', 'bespoke_task_mp_bridge',
+    'mp_terms', 'disease_clean', 'genotype_bridge', 'human_diseases',
+    'chrom2_gene', 'chrom2_transcript', 'chrom2'
+  )
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+
+
+-- Gene-Level Overall Phenotype, LacZ Expression & Chromosome 2 Summary
+-- Summarises each target gene into a single overview row
+SELECT
+  c.mouse_gene_symbol,
+  c.mgi_gene_id,
+  COUNT(DISTINCT c.result_id) AS grouped_tests,
+  COUNT(DISTINCT pg.group_id) AS groups_tested,
+  SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) AS significant_hits,
+  MIN(c.p_value) AS min_p_value,
+  -LOG10(GREATEST(MIN(c.p_value), 1e-300)) AS neg_log10_min_p,
+  COUNT(DISTINCT l.result_id) AS lacz_linked_records,
+  MAX(b.in_impc_dataset) AS in_bespoke_impc_overlap,
+  COUNT(DISTINCT c2.ensembl_exon_id) AS chrom2_exons
+FROM data_base_merged.clean_data c
+INNER JOIN data_base_merged.parameter_group_member pgm
+  ON c.parameter_stable_id = pgm.parameter_stable_id
+INNER JOIN data_base_merged.parameter_group pg
+  ON pgm.group_id = pg.group_id
+LEFT JOIN data_base_merged.lacz_expression l
+  ON c.result_id = l.result_id
+LEFT JOIN data_base_merged.bespoke_task_table b
+  ON c.mgi_gene_id = b.mgi_gene_id
+LEFT JOIN data_base_merged.chrom2_gene cg
+  ON c.mgi_gene_id = cg.mgi_gene_id
+LEFT JOIN data_base_merged.chrom2_transcript ct
+  ON cg.ensembl_gene_id = ct.ensembl_gene_id
+LEFT JOIN data_base_merged.chrom2 c2
+  ON ct.ensembl_transcript_id = c2.ensembl_transcript_id
+WHERE c.mouse_gene_symbol IN ('Rhbdl2', 'Scx', 'Muc5ac', 'Parpbp')
+  AND c.p_value IS NOT NULL
+GROUP BY
+  c.mouse_gene_symbol,
+  c.mgi_gene_id
+ORDER BY
+  significant_hits DESC,
+  min_p_value ASC;
+
+
+-- Query 2 Gene and Parameter Group Summary
+-- Aggregates test counts, significant hits, minimum p-value, negative log10 p-value, bespoke task overlap, and chromosome 2 exon counts per gene and parameter group.
+SELECT
+  c.mouse_gene_symbol,
+  c.mgi_gene_id,
+  pg.group_name AS parameter_group,
+  COUNT(DISTINCT c.result_id) AS total_tests,
+  SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) AS significant_hits,
+  MIN(c.p_value) AS min_p_value,
+  -LOG10(GREATEST(MIN(c.p_value), 1e-300)) AS neg_log10_min_p,
+  MAX(b.in_impc_dataset) AS in_bespoke_impc_overlap,
+  COUNT(DISTINCT c2.ensembl_exon_id) AS chrom2_exons
+FROM data_base_merged.clean_data c
+INNER JOIN data_base_merged.parameter_group_member pgm
+  ON c.parameter_stable_id = pgm.parameter_stable_id
+INNER JOIN data_base_merged.parameter_group pg
+  ON pgm.group_id = pg.group_id
+LEFT JOIN data_base_merged.bespoke_task_table b
+  ON c.mgi_gene_id = b.mgi_gene_id
+LEFT JOIN data_base_merged.chrom2_gene cg
+  ON c.mgi_gene_id = cg.mgi_gene_id
+LEFT JOIN data_base_merged.chrom2_transcript ct
+  ON cg.ensembl_gene_id = ct.ensembl_gene_id
+LEFT JOIN data_base_merged.chrom2 c2
+  ON ct.ensembl_transcript_id = c2.ensembl_transcript_id
+WHERE c.mouse_gene_symbol IN ('Rhbdl2', 'Scx', 'Muc5ac', 'Parpbp')
+  AND c.p_value IS NOT NULL
+GROUP BY
+  c.mouse_gene_symbol,
+  c.mgi_gene_id,
+  pg.group_name
+ORDER BY
+  c.mouse_gene_symbol,
+  min_p_value ASC;
+
+-- Query 3 - Life stage and parameter group hit rate breakdown 
+-- Breaks down each target gene across life stage and parameter group with normalized hit_rate (significant_hits / total_tests) to compare signal density across groups and developmental stages.
+
+SELECT
+  c.mouse_gene_symbol,
+  c.mgi_gene_id,
+  COALESCE(c.mouse_life_stage, 'Unspecified') AS life_stage,
+  pg.group_name AS parameter_group,
+  COUNT(DISTINCT c.result_id) AS total_tests,
+  SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) AS significant_hits,
+  ROUND(
+    SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) / COUNT(DISTINCT c.result_id),
+    4
+  ) AS hit_rate,
+  MIN(c.p_value) AS min_p_value,
+  -LOG10(GREATEST(MIN(c.p_value), 1e-300)) AS neg_log10_min_p
+FROM data_base_merged.clean_data c
+INNER JOIN data_base_merged.parameter_group_member pgm
+  ON c.parameter_stable_id = pgm.parameter_stable_id
+INNER JOIN data_base_merged.parameter_group pg
+  ON pgm.group_id = pg.group_id
+WHERE c.mouse_gene_symbol IN ('Rhbdl2', 'Scx', 'Muc5ac', 'Parpbp')
+  AND c.p_value IS NOT NULL
+GROUP BY
+  c.mouse_gene_symbol,
+  c.mgi_gene_id,
+  life_stage,
+  pg.group_name
+ORDER BY
+  c.mouse_gene_symbol,
+  life_stage,
+  hit_rate DESC,
+  min_p_value ASC;
+
+-- Query 4 - Ranked IMPC 6-Group Phenotype, Human Disease, Bespoke MP, Tissue LacZ & Chromosome 2 Profile (Rhbdl2, Scx, Muc5ac, Parpbp)
+
+SELECT COLUMN_NAME, DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'data_base_merged'
+  AND TABLE_NAME IN ('genotype_bridge', 'disease_clean', 'human_diseases', 'bespoke_task_table', 'bespoke_task_mp_bridge', 'mp_terms', 'lacz_expression')
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+
+
+WITH target_genes AS (
+  SELECT DISTINCT
+    c.mouse_gene_symbol,
+    c.mgi_gene_id
+  FROM data_base_merged.clean_data c
+  WHERE c.mouse_gene_symbol IN ('Rhbdl2', 'Scx', 'Muc5ac', 'Parpbp')
+    AND c.mgi_gene_id IS NOT NULL
+),
+disease_summary AS (
+  SELECT
+    tg.mgi_gene_id,
+    COUNT(DISTINCT dc.disease_row_id) AS n_disease_rows,
+    COUNT(DISTINCT gb.mouse_genotype_id) AS n_bridged_genotypes,
+    GROUP_CONCAT(
+      DISTINCT CONCAT(dc.doid, ': ', COALESCE(hd.disease_name, dc.disease_name))
+      ORDER BY dc.doid
+      SEPARATOR '; '
+    ) AS diseases
+  FROM target_genes tg
+  INNER JOIN data_base_merged.disease_clean dc
+    ON tg.mgi_gene_id = dc.mgi_gene_id
+  LEFT JOIN data_base_merged.human_diseases hd
+    ON dc.doid = hd.doid
+  LEFT JOIN data_base_merged.genotype_bridge gb
+    ON dc.disease_row_id = gb.disease_row_id
+  GROUP BY tg.mgi_gene_id
+),
+bespoke_summary AS (
+  SELECT
+    b.mgi_gene_id,
+    COUNT(DISTINCT b.bespoke_row_id) AS n_bespoke_rows,
+    MAX(b.in_impc_dataset) AS in_impc_dataset,
+    GROUP_CONCAT(DISTINCT b.hp_term_name ORDER BY b.hp_term_name SEPARATOR '; ') AS hp_terms,
+    GROUP_CONCAT(
+      DISTINCT CONCAT(bmp.mp_term_id, ' (', COALESCE(mt.mp_term_name, 'unnamed'), ')')
+      ORDER BY bmp.mp_term_id
+      SEPARATOR '; '
+    ) AS bespoke_mp_terms
+  FROM data_base_merged.bespoke_task_table b
+  LEFT JOIN data_base_merged.bespoke_task_mp_bridge bmp
+    ON b.bespoke_row_id = bmp.bespoke_row_id
+  LEFT JOIN data_base_merged.mp_terms mt
+    ON bmp.mp_term_id = mt.mp_term_id
+  GROUP BY b.mgi_gene_id
+),
+lacz_summary AS (
+  SELECT
+    c.mgi_gene_id,
+    COUNT(DISTINCT l.result_id) AS lacz_result_rows,
+    SUM(CASE WHEN l.lacz_brain IS NOT NULL AND l.lacz_brain != '' THEN 1 ELSE 0 END) AS lacz_brain_n,
+    SUM(CASE WHEN l.lacz_heart IS NOT NULL AND l.lacz_heart != '' THEN 1 ELSE 0 END) AS lacz_heart_n,
+    SUM(CASE WHEN l.lacz_liver IS NOT NULL AND l.lacz_liver != '' THEN 1 ELSE 0 END) AS lacz_liver_n,
+    SUM(CASE WHEN l.lacz_lung IS NOT NULL AND l.lacz_lung != '' THEN 1 ELSE 0 END) AS lacz_lung_n,
+    SUM(CASE WHEN l.lacz_kidney IS NOT NULL AND l.lacz_kidney != '' THEN 1 ELSE 0 END) AS lacz_kidney_n,
+    SUM(CASE WHEN l.lacz_skin IS NOT NULL AND l.lacz_skin != '' THEN 1 ELSE 0 END) AS lacz_skin_n,
+    SUM(CASE WHEN l.lacz_skeletal_muscle IS NOT NULL AND l.lacz_skeletal_muscle != '' THEN 1 ELSE 0 END) AS lacz_muscle_n,
+    SUM(CASE WHEN l.lacz_eye IS NOT NULL AND l.lacz_eye != '' THEN 1 ELSE 0 END) AS lacz_eye_n,
+    SUM(CASE WHEN l.lacz_colon IS NOT NULL AND l.lacz_colon != '' THEN 1 ELSE 0 END) AS lacz_colon_n,
+    SUM(CASE WHEN l.lacz_blood IS NOT NULL AND l.lacz_blood != '' THEN 1 ELSE 0 END) AS lacz_blood_n,
+    SUM(CASE WHEN l.lacz_vascular_system IS NOT NULL AND l.lacz_vascular_system != '' THEN 1 ELSE 0 END) AS lacz_vascular_n
+  FROM data_base_merged.clean_data c
+  INNER JOIN data_base_merged.lacz_expression l
+    ON c.result_id = l.result_id
+  WHERE c.mouse_gene_symbol IN ('Rhbdl2', 'Scx', 'Muc5ac', 'Parpbp')
+  GROUP BY c.mgi_gene_id
+),
+chrom2_summary AS (
+  SELECT
+    cg.mgi_gene_id,
+    COUNT(DISTINCT ct.ensembl_transcript_id) AS chrom2_transcripts,
+    COUNT(DISTINCT c2.ensembl_exon_id) AS chrom2_exons
+  FROM data_base_merged.chrom2_gene cg
+  LEFT JOIN data_base_merged.chrom2_transcript ct
+    ON cg.ensembl_gene_id = ct.ensembl_gene_id
+  LEFT JOIN data_base_merged.chrom2 c2
+    ON ct.ensembl_transcript_id = c2.ensembl_transcript_id
+  GROUP BY cg.mgi_gene_id
+),
+phenotype_summary AS (
+  SELECT
+    c.mgi_gene_id,
+    COUNT(DISTINCT c.result_id) AS grouped_tests,
+    COUNT(DISTINCT pg.group_id) AS groups_tested,
+    SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) AS sig_hits,
+    ROUND(
+      SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT c.result_id), 0),
+      4
+    ) AS hit_rate,
+    MIN(c.p_value) AS min_p_value,
+    ROUND(-LOG10(GREATEST(MIN(c.p_value), 1e-300)), 2) AS neg_log10_min_p
+  FROM data_base_merged.clean_data c
+  INNER JOIN data_base_merged.parameter_group_member pgm
+    ON c.parameter_stable_id = pgm.parameter_stable_id
+  INNER JOIN data_base_merged.parameter_group pg
+    ON pgm.group_id = pg.group_id
+  WHERE c.p_value IS NOT NULL
+  GROUP BY c.mgi_gene_id
+)
+SELECT
+  DENSE_RANK() OVER (ORDER BY COALESCE(ps.sig_hits, 0) DESC, ps.min_p_value ASC) AS cohort_rank,
+  tg.mouse_gene_symbol,
+  tg.mgi_gene_id,
+  COALESCE(ps.grouped_tests, 0) AS grouped_tests,
+  COALESCE(ps.groups_tested, 0) AS groups_tested,
+  COALESCE(ps.sig_hits, 0) AS sig_hits,
+  COALESCE(ps.hit_rate, 0) AS hit_rate,
+  ps.min_p_value,
+  ps.neg_log10_min_p,
+  COALESCE(ds.n_disease_rows, 0) AS n_disease_rows,
+  COALESCE(ds.n_bridged_genotypes, 0) AS n_bridged_genotypes,
+  ds.diseases,
+  COALESCE(bs.n_bespoke_rows, 0) AS n_bespoke_rows,
+  COALESCE(bs.in_impc_dataset, 0) AS in_impc_dataset,
+  bs.hp_terms,
+  bs.bespoke_mp_terms,
+  COALESCE(ls.lacz_result_rows, 0) AS lacz_result_rows,
+  COALESCE(ls.lacz_brain_n, 0) AS lacz_brain_n,
+  COALESCE(ls.lacz_heart_n, 0) AS lacz_heart_n,
+  COALESCE(ls.lacz_liver_n, 0) AS lacz_liver_n,
+  COALESCE(ls.lacz_lung_n, 0) AS lacz_lung_n,
+  COALESCE(ls.lacz_kidney_n, 0) AS lacz_kidney_n,
+  COALESCE(ls.lacz_skin_n, 0) AS lacz_skin_n,
+  COALESCE(ls.lacz_muscle_n, 0) AS lacz_muscle_n,
+  COALESCE(ls.lacz_eye_n, 0) AS lacz_eye_n,
+  COALESCE(ls.lacz_colon_n, 0) AS lacz_colon_n,
+  COALESCE(ls.lacz_blood_n, 0) AS lacz_blood_n,
+  COALESCE(ls.lacz_vascular_n, 0) AS lacz_vascular_n,
+  COALESCE(c2s.chrom2_transcripts, 0) AS chrom2_transcripts,
+  COALESCE(c2s.chrom2_exons, 0) AS chrom2_exons
+FROM target_genes tg
+LEFT JOIN phenotype_summary ps
+  ON tg.mgi_gene_id = ps.mgi_gene_id
+LEFT JOIN disease_summary ds
+  ON tg.mgi_gene_id = ds.mgi_gene_id
+LEFT JOIN bespoke_summary bs
+  ON tg.mgi_gene_id = bs.mgi_gene_id
+LEFT JOIN lacz_summary ls
+  ON tg.mgi_gene_id = ls.mgi_gene_id
+LEFT JOIN chrom2_summary c2s
+  ON tg.mgi_gene_id = c2s.mgi_gene_id
+ORDER BY cohort_rank, tg.mouse_gene_symbol;
+
+-- Query 5 cohort-wide top-genes query (top 5 per parameter group across your 6 groups) that pre-aggregates the disease links (disease_clean, human_diseases, genotype_bridge) and bespoke task / Mammalian Phenotype links (bespoke_task_table, bespoke_task_mp_bridge, mp_terms 
+
+WITH gene_group_stats AS (
+  SELECT
+    pg.group_id,
+    pg.group_name AS parameter_group,
+    c.mouse_gene_symbol,
+    c.mgi_gene_id,
+    COUNT(DISTINCT c.result_id) AS total_tests,
+    SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) AS sig_hits,
+    ROUND(
+      SUM(CASE WHEN c.p_value < 0.0001 THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT c.result_id), 0),
+      4
+    ) AS hit_rate,
+    MIN(c.p_value) AS min_p_value,
+    ROUND(-LOG10(GREATEST(MIN(c.p_value), 1e-300)), 2) AS neg_log10_min_p
+  FROM data_base_merged.clean_data c
+  INNER JOIN data_base_merged.parameter_group_member pgm
+    ON c.parameter_stable_id = pgm.parameter_stable_id
+  INNER JOIN data_base_merged.parameter_group pg
+    ON pgm.group_id = pg.group_id
+  WHERE c.mouse_gene_symbol IS NOT NULL
+    AND c.mgi_gene_id IS NOT NULL
+    AND c.p_value IS NOT NULL
+  GROUP BY
+    pg.group_id,
+    pg.group_name,
+    c.mouse_gene_symbol,
+    c.mgi_gene_id
+),
+top5_by_group AS (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY group_id
+      ORDER BY sig_hits DESC, min_p_value ASC, mouse_gene_symbol ASC
+    ) AS group_gene_rank
+  FROM gene_group_stats
+),
+top_genes AS (
+  SELECT DISTINCT
+    mgi_gene_id
+  FROM top5_by_group
+  WHERE group_gene_rank <= 5
+),
+disease_agg AS (
+  SELECT
+    dc.mgi_gene_id,
+    COUNT(DISTINCT dc.doid) AS n_diseases,
+    COUNT(DISTINCT gb.mouse_genotype_id) AS n_bridged_genotypes,
+    GROUP_CONCAT(
+      DISTINCT CONCAT(dc.doid, ': ', COALESCE(hd.disease_name, dc.disease_name))
+      ORDER BY dc.doid
+      SEPARATOR '; '
+    ) AS diseases
+  FROM top_genes tg
+  INNER JOIN data_base_merged.disease_clean dc
+    ON tg.mgi_gene_id = dc.mgi_gene_id
+  LEFT JOIN data_base_merged.human_diseases hd
+    ON dc.doid = hd.doid
+  LEFT JOIN data_base_merged.genotype_bridge gb
+    ON dc.disease_row_id = gb.disease_row_id
+  GROUP BY dc.mgi_gene_id
+),
+bespoke_agg AS (
+  SELECT
+    b.mgi_gene_id,
+    MAX(COALESCE(b.in_impc_dataset, 0)) AS in_impc_dataset,
+    COUNT(DISTINCT bmp.mp_term_id) AS n_bespoke_mp_terms,
+    GROUP_CONCAT(
+      DISTINCT CONCAT(bmp.mp_term_id, ' (', COALESCE(mt.mp_term_name, 'unmapped'), ')')
+      ORDER BY bmp.mp_term_id
+      SEPARATOR '; '
+    ) AS bespoke_mp_terms
+  FROM top_genes tg
+  INNER JOIN data_base_merged.bespoke_task_table b
+    ON tg.mgi_gene_id = b.mgi_gene_id
+  LEFT JOIN data_base_merged.bespoke_task_mp_bridge bmp
+    ON b.bespoke_row_id = bmp.bespoke_row_id
+  LEFT JOIN data_base_merged.mp_terms mt
+    ON bmp.mp_term_id = mt.mp_term_id
+  GROUP BY b.mgi_gene_id
+)
+SELECT
+  t.parameter_group,
+  t.group_gene_rank,
+  t.mouse_gene_symbol,
+  t.mgi_gene_id,
+  t.total_tests,
+  t.sig_hits,
+  t.hit_rate,
+  t.min_p_value,
+  t.neg_log10_min_p,
+  COALESCE(d.n_diseases, 0) AS n_diseases,
+  COALESCE(d.n_bridged_genotypes, 0) AS n_bridged_genotypes,
+  d.diseases,
+  COALESCE(b.in_impc_dataset, 0) AS in_impc_dataset,
+  COALESCE(b.n_bespoke_mp_terms, 0) AS n_bespoke_mp_terms,
+  b.bespoke_mp_terms
+FROM top5_by_group t
+LEFT JOIN disease_agg d
+  ON t.mgi_gene_id = d.mgi_gene_id
+LEFT JOIN bespoke_agg b
+  ON t.mgi_gene_id = b.mgi_gene_id
+WHERE t.group_gene_rank <= 5
+ORDER BY t.parameter_group, t.group_gene_rank;
+
+-- Query 6 Chromosome 2 Transcript & Exon Lookup for Four Chromosome 2 Genes
+
+-- first pick 4 genes from chrom 2 
+SELECT * FROM data_base_merged.chrom2_gene LIMIT 5;
+SELECT * FROM data_base_merged.chrom2_transcript LIMIT 5;
+SELECT * FROM data_base_merged.chrom2 LIMIT 5;
+
+-- Query our chosen genes - Gpr107 Lhx2 Cdh4 Ckmt1
+
+WITH target_chr2_genes AS (
+  SELECT DISTINCT
+    cg.gene_name,
+    cg.ensembl_gene_id
+  FROM data_base_merged.chrom2_gene cg
+  WHERE cg.gene_name IN ('Gpr107', 'Lhx2', 'Cdh4', 'Ckmt1')
+),
+chrom2_chain AS (
+  SELECT
+    tg.gene_name,
+    tg.ensembl_gene_id,
+    ct.ensembl_transcript_id,
+    c2.ensembl_exon_id
+  FROM target_chr2_genes tg
+  LEFT JOIN data_base_merged.chrom2_transcript ct
+    ON tg.ensembl_gene_id = ct.ensembl_gene_id
+  LEFT JOIN data_base_merged.chrom2 c2
+    ON ct.ensembl_transcript_id = c2.ensembl_transcript_id
+)
+SELECT
+  gene_name,
+  ensembl_gene_id,
+  COUNT(DISTINCT ensembl_transcript_id) AS chrom2_transcripts,
+  COUNT(DISTINCT ensembl_exon_id) AS chrom2_exons,
+  GROUP_CONCAT(DISTINCT ensembl_transcript_id ORDER BY ensembl_transcript_id SEPARATOR ', ') AS transcript_ids,
+  SUM(COUNT(DISTINCT ensembl_exon_id)) OVER () AS total_selected_chr2_exons
+FROM chrom2_chain
+GROUP BY
+  gene_name,
+  ensembl_gene_id
+ORDER BY
+  chrom2_exons DESC,
+  gene_name ASC;
+
