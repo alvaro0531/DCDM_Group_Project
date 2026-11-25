@@ -7,6 +7,7 @@ editor: visual
 ### Set Up for Importing
 
 All our csv files need to ensure standardised column names to avoid errors when importing - this is done using R so we gather all our csv files
+Note if error encounted an alternative has been added however it shouldn't. Alternatively running the R codes line by line 
 
 ```{r}
 library(readr)
@@ -23,11 +24,14 @@ csv_files <- c(
   mouse_merged           = "mouse_merged.csv",
   procedures             = "procedures.csv"
 )
+
+# if error produced run -> csv_dir <- Sys.getenv("CSV_DIR", unset = path.expand("~/Downloads")) instead of "."
 ```
 
 # 1. Print the exact column names of each CSV
 
 ```{r}
+csv_dir <- Sys.getenv("CSV_DIR", unset = path.expand("~/Downloads"))
 col_list <- lapply(file.path(csv_dir, csv_files), function(p) {
   names(read_csv(p, n_max = 0, show_col_types = FALSE))
 })
