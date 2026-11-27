@@ -1,5 +1,3 @@
-DROP DATABASE IF EXISTS Data_base_merged;
-
 CREATE DATABASE Data_base_merged
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_0900_ai_ci;
