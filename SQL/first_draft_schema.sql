@@ -1,3 +1,5 @@
+-- THIS IS THE FIRST DRAFT
+  
 -- Group 14 IMPC: revised 18-table CREATE TABLE definitions.
 -- Group 14 IMPC database: revised 18-table schema for the accepted eight CSV inputs.
 -- MySQL 8.0 / InnoDB / utf8mb4.
