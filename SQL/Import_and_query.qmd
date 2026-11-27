@@ -7,7 +7,6 @@ editor: visual
 ### Set Up for Importing
 
 All our csv files need to ensure standardised column names to avoid errors when importing - this is done using R so we gather all our csv files
-Note if error encounted an alternative has been added however it shouldn't. Alternatively running the R codes line by line 
 
 ```{r}
 library(readr)
@@ -24,14 +23,13 @@ csv_files <- c(
   mouse_merged           = "mouse_merged.csv",
   procedures             = "procedures.csv"
 )
-
-# if error produced run -> csv_dir <- Sys.getenv("CSV_DIR", unset = path.expand("~/Downloads")) instead of "."
 ```
 
 # 1. Print the exact column names of each CSV
 
 ```{r}
 csv_dir <- Sys.getenv("CSV_DIR", unset = path.expand("~/Downloads"))
+
 col_list <- lapply(file.path(csv_dir, csv_files), function(p) {
   names(read_csv(p, n_max = 0, show_col_types = FALSE))
 })
@@ -151,7 +149,7 @@ for (nm in names(std_tables)) {
 }
 ```
 
-# Check the column names 
+# Check the column names
 
 And lets also check which column names are in what tables and how many tables
 
@@ -511,7 +509,7 @@ CREATE TABLE parameter_group_external_data (
 
 ```
 
-# Importing the data to the schema 
+# Importing the data to the schema
 
 Connect via R
 
@@ -824,6 +822,92 @@ write_to_db(con, "parameter_group_member", members_df)
 
 ```
 
+**Audit completeness Check:** Run a quick row-count comparison between every source CSV and its corresponding MySQL table so we can state exact counts and explain any filtered/null rows.
+
+```{r}
+library(readr)
+library(dplyr)
+library(DBI)
+library(RMariaDB)
+library(knitr)
+
+con <- dbConnect(
+  RMariaDB::MariaDB(),
+  dbname   = "data_base_merged",
+  host     = "127.0.0.1",
+  port     = 3306,
+  username = "root",
+  password = rstudioapi::askForPassword("MySQL root password")
+)
+
+csv_dir <- "."
+std_dir <- "standardised_csvs"
+
+tables <- tibble::tribble(
+  ~table,                   ~raw_file,                                ~std_file,
+  "IMPC_parameters",        file.path(csv_dir, "IMPC_parameters.csv"),     file.path(std_dir, "IMPC_parameters.csv"),
+  "procedures",             file.path(csv_dir, "procedures.csv"),            file.path(std_dir, "procedures.csv"),
+  "bespoke_task_table",     file.path(csv_dir, "bespoke_task_table.csv"),    file.path(std_dir, "bespoke_task_table.csv"),
+  "bespoke_task_mp_bridge", file.path(csv_dir, "bespoke_task_mp_bridge.csv"),file.path(std_dir, "bespoke_task_mp_bridge.csv"),
+  "disease_clean",          file.path(csv_dir, "disease_clean.csv"),         file.path(std_dir, "disease_clean.csv"),
+  "genotype_bridge",        file.path(csv_dir, "genotype_bridge.csv"),       file.path(std_dir, "genotype_bridge.csv"),
+  "chrom2",                 file.path(csv_dir, "chrom2_raw.csv"),            file.path(std_dir, "chrom2.csv")
+)
+
+row_audit <- bind_rows(lapply(seq_len(nrow(tables)), function(i) {
+  tbl <- tables$table[i]
+  raw_p <- tables$raw_file[i]
+  std_p <- tables$std_file[i]
+  
+  raw_n <- if (file.exists(raw_p)) nrow(read_csv(raw_p, show_col_types = FALSE)) else NA_integer_
+  std_n <- if (file.exists(std_p)) nrow(read_csv(std_p, show_col_types = FALSE)) else NA_integer_
+  sql_n <- dbGetQuery(con, sprintf("SELECT COUNT(*) AS n FROM `%s`", tbl))$n
+  
+  tibble::tibble(
+    table      = tbl,
+    raw_rows   = raw_n,
+    std_rows   = std_n,
+    mysql_rows = sql_n,
+    match      = !is.na(std_n) & std_n == sql_n
+  )
+}))
+
+dbDisconnect(con)
+
+kable(row_audit)
+
+```
+
+It is important to investigate why there are differences in the tables. Was the import successful?
+
+```{r}
+# load the IMPC parameters CSV to check why MySQL had fewer rows than the raw file
+impc_raw <- readr::read_csv("IMPC_parameters.csv", show_col_types = FALSE)
+
+# check total row count in the CSV (came out to 5,311 vs 4,633 in MySQL)
+nrow(impc_raw)
+
+# first guessed the old camelCase column names before checking the actual headers
+dplyr::n_distinct(impc_raw$parameterId)
+dplyr::n_distinct(impc_raw$impcParameterOrigId)
+
+# check what the columns are actually called and peek at the first few rows
+names(impc_raw)
+head(impc_raw, 3)
+
+# once we saw the standardised names, check how unique each ID column is and if whole rows repeat
+dplyr::n_distinct(impc_raw$parameter_stable_id)
+dplyr::n_distinct(impc_raw$impc_parameter_orig_id)
+nrow(dplyr::distinct(impc_raw))
+
+# check for NAs or empty strings in parameter_stable_id to see if blanks explained the gap
+sum(!is.na(impc_raw$parameter_stable_id))
+dplyr::n_distinct(impc_raw$parameter_stable_id, na.rm = TRUE)
+sum(is.na(impc_raw$parameter_stable_id) | impc_raw$parameter_stable_id == "")
+```
+
+Our tables `procedures`, `parameters,` `bespoke_task_table`, `bespoke_task_mp_bridge`,`disease_clean`, `genotype_bridge` and `chrom2` were imported identically. However `IMPC_parameters` had 4,633 rows in MySQL vs 5,311 in the CSV. Our check in the code above reassures us that the mport into IMPC_parameters was successful, data was not lost nor failed loading. The table enforced unique parameter_stable_id values so repeated parameter entries weren't duplicated in the database.
+
 # Save snapshot of database using Bash
 
 ```{bash}
@@ -846,7 +930,7 @@ head -n 20 data_base_merged_snapshot.sql # Prints the first 20 lines of the dump
 tail -n 15 data_base_merged_snapshot.sql # Prints the last 15 lines of the file to confirm the dump completed cleanly to its footer
 ```
 
-# Now we need to verify the relationships 
+# Now we need to verify the relationships
 
 ```{sql connection=}
 USE data_base_merged;
@@ -908,7 +992,7 @@ ORDER BY pg.group_id;
 
 ```
 
-# Running the Query 
+# Running the Query
 
 For this coursework we ran 6 queries to view the exploratory nature of our database
 
@@ -1262,7 +1346,7 @@ Part 2:
 
 ## Query 5
 
-Cohort-wide top-genes query (top 5 per parameter group across your 6 groups) that pre-aggregates the disease links (disease_clean, human_diseases, genotype_bridge) and bespoke task / Mammalian Phenotype links (bespoke_task_table, bespoke_task_mp_bridge, mp_terms
+Cohort-wide top-genes query (top 5 per parameter group across our 6 groups) that pre-aggregates the disease links (disease_clean, human_diseases, genotype_bridge) and bespoke task / Mammalian Phenotype links (bespoke_task_table, bespoke_task_mp_bridge, mp_terms
 
 ```{sql connection=}
 WITH gene_group_stats AS (
@@ -1380,6 +1464,8 @@ Will only include snapshots of different parameter_groups as the file is too big
 
 ![](images/clipboard-1398838606.png)
 
+The GitHub shows the full files! Please refer to them if the images have not loaded.
+
 ## Query 6
 
 Chromosome 2 Transcript & Exon Lookup for Four Chromosome 2 Genes
@@ -1431,7 +1517,7 @@ ORDER BY
 
 ```
 
-# Query is complete 
+# Query is complete
 
 Next steps...
 
